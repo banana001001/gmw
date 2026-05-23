@@ -1,0 +1,210 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              FVG — Fair Value Gap                            ║
+// ║  Pine Script v5  |  เพิ่มเป็น Indicator แยกใน TradingView    ║
+// ╚══════════════════════════════════════════════════════════════╝
+//
+// หลักการ FVG (3-candle imbalance):
+//   Bullish FVG : low[0] > high[2]  →  ช่องว่างระหว่าง high ของแท่งแรก และ low ของแท่งที่สาม
+//   Bearish FVG : high[0] < low[2]  →  ช่องว่างระหว่าง low ของแท่งแรก และ high ของแท่งที่สาม
+//@version=5
+indicator(title     = "Fair Value Gap [FVG]",
+          shorttitle= "FVG",
+          overlay   = true,
+          max_boxes_count  = 500,
+          max_lines_count  = 500,
+          max_labels_count = 200)
+
+// ═══════════════════════════════════════════════════════════════
+// ⚙️  GENERAL SETTINGS
+// ═══════════════════════════════════════════════════════════════
+grpGen       = "⚙️ General Settings"
+showBull     = input.bool(true,  "Show Bullish FVG",        group=grpGen)
+showBear     = input.bool(true,  "Show Bearish FVG",        group=grpGen)
+showMidLine  = input.bool(true,  "Show Midline",            group=grpGen)
+extendRight  = input.bool(true,  "Extend Box to Right",     group=grpGen)
+hideFilled   = input.bool(false, "Delete When Price Fills", group=grpGen)
+showLabel    = input.bool(false, "Show Labels",             group=grpGen)
+maxFVG       = input.int (100,   "Max FVG on Chart",        minval=1, maxval=500, group=grpGen)
+
+// ═══════════════════════════════════════════════════════════════
+// 🟢  BULLISH FVG COLORS
+// ═══════════════════════════════════════════════════════════════
+grpBull      = "🟢 Bullish FVG Colors"
+bullBG       = input.color(color.new(#089981, 85), "Box Background", group=grpBull)
+bullBorder   = input.color(color.new(#089981, 20), "Box Border",     group=grpBull)
+bullMidClr   = input.color(#089981,                "Midline",        group=grpBull)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔴  BEARISH FVG COLORS
+// ═══════════════════════════════════════════════════════════════
+grpBear      = "🔴 Bearish FVG Colors"
+bearBG       = input.color(color.new(#f23645, 85), "Box Background", group=grpBear)
+bearBorder   = input.color(color.new(#f23645, 20), "Box Border",     group=grpBear)
+bearMidClr   = input.color(#f23645,                "Midline",        group=grpBear)
+
+// ═══════════════════════════════════════════════════════════════
+// ⬜  FILLED FVG COLORS
+// ═══════════════════════════════════════════════════════════════
+grpFill      = "⬜ Filled FVG"
+fillBG       = input.color(color.new(#787b86, 88), "Box Background", group=grpFill)
+fillBorder   = input.color(color.new(#787b86, 50), "Box Border",     group=grpFill)
+fillMidClr   = input.color(color.new(#787b86, 50), "Midline",        group=grpFill)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔍  FVG DETECTION (3-candle pattern)
+// ═══════════════════════════════════════════════════════════════
+//
+//  Bullish:  แท่งที่ 1 (high[2])  <  แท่งที่ 3 (low[0])
+//            ┌─────────────────────────────────────────┐
+//            │   [Candle1]   [Candle2]   [Candle3]     │
+//            │     ▀▀▀                     ░░░          │
+//            │     ───   (gap zone here)  ───          │
+//            │                             ░░░          │
+//            └─────────────────────────────────────────┘
+//
+//  Bearish:  แท่งที่ 1 (low[2])   >  แท่งที่ 3 (high[0])
+isBullFVG    = showBull and (low  > high[2])
+isBearFVG    = showBear and (high < low[2])
+
+// ═══════════════════════════════════════════════════════════════
+// 📦  TRACKING ARRAYS
+// ═══════════════════════════════════════════════════════════════
+var box[]  allBoxes  = array.new_box()
+var line[] allLines  = array.new_line()
+var bool[] isFilled  = array.new_bool()
+
+extMode = extendRight ? extend.right : extend.none
+
+// ─── ลบ FVG เก่าที่เกิน maxFVG ───────────────────────────────
+while array.size(allBoxes) > maxFVG
+    box.delete (array.shift(allBoxes))
+    line.delete(array.shift(allLines))
+    array.shift (isFilled)
+
+// ═══════════════════════════════════════════════════════════════
+// 🟢  DRAW BULLISH FVG
+// ═══════════════════════════════════════════════════════════════
+if isBullFVG
+    topPrice = low          // ขอบบน  = low ของแท่งปัจจุบัน
+    botPrice = high[2]      // ขอบล่าง = high ของ 2 แท่งก่อน
+    midPrice = math.avg(topPrice, botPrice)
+
+    b = box.new(
+         left          = bar_index[2],
+         top           = topPrice,
+         right         = bar_index,
+         bottom        = botPrice,
+         bgcolor       = bullBG,
+         border_color  = bullBorder,
+         border_width  = 1,
+         extend        = extMode)
+
+    line l = na
+    if showMidLine
+        l := line.new(
+             x1     = bar_index[2],
+             y1     = midPrice,
+             x2     = bar_index,
+             y2     = midPrice,
+             color  = bullMidClr,
+             width  = 1,
+             style  = line.style_dashed,
+             extend = extMode)
+
+    if showLabel
+        label.new(
+             x      = bar_index[2],
+             y      = topPrice,
+             text   = "Bull FVG",
+             color  = color.new(#089981, 70),
+             textcolor = #089981,
+             style  = label.style_label_lower_right,
+             size   = size.tiny)
+
+    array.push(allBoxes, b)
+    array.push(allLines, l)
+    array.push(isFilled, false)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔴  DRAW BEARISH FVG
+// ═══════════════════════════════════════════════════════════════
+if isBearFVG
+    topPrice = low[2]       // ขอบบน  = low ของ 2 แท่งก่อน
+    botPrice = high         // ขอบล่าง = high ของแท่งปัจจุบัน
+    midPrice = math.avg(topPrice, botPrice)
+
+    b = box.new(
+         left          = bar_index[2],
+         top           = topPrice,
+         right         = bar_index,
+         bottom        = botPrice,
+         bgcolor       = bearBG,
+         border_color  = bearBorder,
+         border_width  = 1,
+         extend        = extMode)
+
+    line l = na
+    if showMidLine
+        l := line.new(
+             x1     = bar_index[2],
+             y1     = midPrice,
+             x2     = bar_index,
+             y2     = midPrice,
+             color  = bearMidClr,
+             width  = 1,
+             style  = line.style_dashed,
+             extend = extMode)
+
+    if showLabel
+        label.new(
+             x      = bar_index[2],
+             y      = botPrice,
+             text   = "Bear FVG",
+             color  = color.new(#f23645, 70),
+             textcolor = #f23645,
+             style  = label.style_label_upper_right,
+             size   = size.tiny)
+
+    array.push(allBoxes, b)
+    array.push(allLines, l)
+    array.push(isFilled, false)
+
+// ═══════════════════════════════════════════════════════════════
+// ✅  CHECK FILLED FVGs  (ตรวจสอบทุก bar ว่า FVG ถูก fill หรือยัง)
+// ═══════════════════════════════════════════════════════════════
+if array.size(allBoxes) > 0
+    for i = 0 to array.size(allBoxes) - 1
+        if not array.get(isFilled, i)
+            b    = array.get(allBoxes, i)
+            bTop = box.get_top(b)
+            bBot = box.get_bottom(b)
+
+            // ราคาเข้ามาในโซน FVG (candle overlap กับ box)
+            filled = low <= bTop and high >= bBot
+
+            if filled
+                array.set(isFilled, i, true)
+
+                if hideFilled
+                    // ลบ box และ midline ออกเลย
+                    box.delete(b)
+                    ln = array.get(allLines, i)
+                    if not na(ln)
+                        line.delete(ln)
+                else
+                    // เปลี่ยนสีเป็น "filled" และหยุดขยาย
+                    box.set_bgcolor     (b, fillBG)
+                    box.set_border_color(b, fillBorder)
+                    box.set_extend      (b, extend.none)
+                    ln = array.get(allLines, i)
+                    if not na(ln)
+                        line.set_color (ln, fillMidClr)
+                        line.set_extend(ln, extend.none)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔔  ALERTS
+// ═══════════════════════════════════════════════════════════════
+alertcondition(isBullFVG, "FVG — Bullish Gap Detected",
+     "พบ Bullish FVG ใหม่ (Bullish Imbalance)")
+alertcondition(isBearFVG, "FVG — Bearish Gap Detected",
+     "พบ Bearish FVG ใหม่ (Bearish Imbalance)")

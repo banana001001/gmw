@@ -1,0 +1,115 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║              MACD — Moving Average Convergence Divergence    ║
+// ║  Pine Script v5  |  เพิ่มเป็น Indicator แยกใน TradingView    ║
+// ╚══════════════════════════════════════════════════════════════╝
+//@version=5
+indicator(title="MACD", shorttitle="MACD", overlay=false)
+
+// ═══════════════════════════════════════════════════════════════
+// ⚙️  MACD SETTINGS
+// ═══════════════════════════════════════════════════════════════
+grpMain    = "⚙️ MACD Settings"
+fastLen    = input.int   (12,    "Fast Length",       minval=1, group=grpMain)
+slowLen    = input.int   (26,    "Slow Length",       minval=1, group=grpMain)
+sigLen     = input.int   (9,     "Signal Smoothing",  minval=1, group=grpMain)
+src        = input.source(close, "Source",                      group=grpMain)
+
+// ═══════════════════════════════════════════════════════════════
+// 📊  HISTOGRAM COLORS  (4 states — เหมือน TradingView built-in)
+// ═══════════════════════════════════════════════════════════════
+grpHist    = "📊 Histogram"
+showHist   = input.bool (true,                        "Show Histogram",                      group=grpHist)
+colUpStr   = input.color(#26a69a,                     "● Positive · Rising  (strong bull)",  group=grpHist)
+colUpWeak  = input.color(color.new(#26a69a, 50),      "○ Positive · Falling (weak  bull)",   group=grpHist)
+colDnStr   = input.color(#ef5350,                     "● Negative · Falling (strong bear)",  group=grpHist)
+colDnWeak  = input.color(color.new(#ef5350, 50),      "○ Negative · Rising  (weak  bear)",   group=grpHist)
+
+// ═══════════════════════════════════════════════════════════════
+// 📈  LINE SETTINGS
+// ═══════════════════════════════════════════════════════════════
+grpLine    = "📈 Lines"
+showMACD   = input.bool (true,    "Show MACD Line",    group=grpLine)
+showSig    = input.bool (true,    "Show Signal Line",  group=grpLine)
+colMACD    = input.color(#2962ff, "MACD Line Color",   group=grpLine)
+colSig     = input.color(#ff6d00, "Signal Line Color", group=grpLine)
+lineWidth  = input.int  (2,       "Line Width",        minval=1, maxval=4, group=grpLine)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔔  CROSSOVER SIGNALS
+// ═══════════════════════════════════════════════════════════════
+grpCross   = "🔔 Crossover Signals"
+showCross  = input.bool (false,                    "Show Crossover Signals", group=grpCross)
+colBullSig = input.color(color.new(#26a69a, 0),   "▲ Bullish Signal Color", group=grpCross)
+colBearSig = input.color(color.new(#ef5350, 0),   "▼ Bearish Signal Color", group=grpCross)
+
+// ═══════════════════════════════════════════════════════════════
+// 🧮  CALCULATION
+// ═══════════════════════════════════════════════════════════════
+[macdVal, sigVal, histVal] = ta.macd(src, fastLen, slowLen, sigLen)
+
+// 4-state histogram color (เหมือน TradingView default MACD)
+histColor = if histVal >= 0
+    histVal >= nz(histVal[1]) ? colUpStr : colUpWeak
+else
+    histVal <= nz(histVal[1]) ? colDnStr : colDnWeak
+
+// ═══════════════════════════════════════════════════════════════
+// 🖼️  PLOTS
+// ═══════════════════════════════════════════════════════════════
+plot(showHist ? histVal : na,
+     title     = "Histogram",
+     color     = histColor,
+     style     = plot.style_columns,
+     linewidth = 4)
+
+plot(showMACD ? macdVal : na,
+     title     = "MACD Line",
+     color     = colMACD,
+     linewidth = lineWidth)
+
+plot(showSig ? sigVal : na,
+     title     = "Signal Line",
+     color     = colSig,
+     linewidth = lineWidth)
+
+hline(0,
+      title     = "Zero Line",
+      color     = color.new(color.gray, 50),
+      linestyle = hline.style_dashed,
+      linewidth = 1)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔺🔻  CROSSOVER SIGNAL MARKERS
+// ═══════════════════════════════════════════════════════════════
+bullCross = ta.crossover (macdVal, sigVal)
+bearCross = ta.crossunder(macdVal, sigVal)
+
+plotshape(showCross and bullCross,
+     title     = "Bullish Cross",
+     style     = shape.triangleup,
+     location  = location.bottom,
+     color     = colBullSig,
+     size      = size.small)
+
+plotshape(showCross and bearCross,
+     title     = "Bearish Cross",
+     style     = shape.triangledown,
+     location  = location.top,
+     color     = colBearSig,
+     size      = size.small)
+
+// Zero-line crossovers
+bullZero = ta.crossover (macdVal, 0)
+bearZero = ta.crossunder(macdVal, 0)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔔  ALERTS
+// ═══════════════════════════════════════════════════════════════
+alertcondition(bullCross, "MACD — Bull Cross Signal",
+     "MACD ตัด Signal ขึ้น (Bullish Crossover)")
+alertcondition(bearCross, "MACD — Bear Cross Signal",
+     "MACD ตัด Signal ลง (Bearish Crossover)")
+alertcondition(bullZero,  "MACD — Cross Zero Up",
+     "MACD ตัด Zero Line ขึ้น")
+alertcondition(bearZero,  "MACD — Cross Zero Down",
+     "MACD ตัด Zero Line ลง")
