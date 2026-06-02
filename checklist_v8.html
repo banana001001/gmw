@@ -2436,6 +2436,8 @@ function _doCheckAll() {
   document.querySelectorAll('.sl-management-btn').forEach(function(b) {
     b.classList.add('selected');
   });
+  var slReset = document.getElementById('sl-mgmt-reset');
+  if (slReset) slReset.classList.add('show');
   /* Result — เลือก stepper */
   document.querySelectorAll('.result-choice').forEach(function(b) {
     b.classList.add('hidden'); b.classList.remove('selected');
@@ -2878,7 +2880,7 @@ function onDirDD2() {
 function resetDirDD1() {
   if (tfState.structures) tfState.structures.dir = [];
   hideChip('dir-chip1','dir-dd1');
-  document.getElementById('dir-dd1').value = '';
+  var _dd1Dir = document.getElementById('dir-dd1'); _dd1Dir.value = ''; refreshCustomDDLabel(_dd1Dir);
   ddSetDisplay(document.getElementById('dir-dd2'), false);
   document.getElementById('dir-dd-plus').style.display = 'none';
   hideChip('dir-chip2','dir-dd2', false);
@@ -2889,6 +2891,7 @@ function resetDirDD2() {
   if (tfState.structures) tfState.structures.dir[1] = null;
   hideChip('dir-chip2','dir-dd2');
   document.getElementById('dir-dd2').value = '';
+  document.getElementById('dir-dd-plus').style.display = 'none';
   renderTFDependentSections();
 }
 
@@ -2935,7 +2938,7 @@ function onPlanDD2() {
 function resetPlanDD1() {
   if (tfState.structures) tfState.structures.plan = [];
   hideChip('plan-chip1','plan-dd1');
-  document.getElementById('plan-dd1').value = '';
+  var _dd1Plan = document.getElementById('plan-dd1'); _dd1Plan.value = ''; refreshCustomDDLabel(_dd1Plan);
   ddSetDisplay(document.getElementById('plan-dd2'), false);
   document.getElementById('plan-dd-plus').style.display = 'none';
   hideChip('plan-chip2','plan-dd2', false);
@@ -2946,6 +2949,7 @@ function resetPlanDD2() {
   if (tfState.structures) tfState.structures.plan[1] = null;
   hideChip('plan-chip2','plan-dd2');
   document.getElementById('plan-dd2').value = '';
+  document.getElementById('plan-dd-plus').style.display = 'none';
   renderTFDependentSections();
 }
 
@@ -2993,7 +2997,7 @@ function onEntryDD2() {
 function resetEntryDD1() {
   if (tfState.structures) tfState.structures.entry = [];
   hideChip('entry-chip1','entry-dd1');
-  document.getElementById('entry-dd1').value = '';
+  var _dd1Entry = document.getElementById('entry-dd1'); _dd1Entry.value = ''; refreshCustomDDLabel(_dd1Entry);
   ddSetDisplay(document.getElementById('entry-dd2'), false);
   document.getElementById('entry-dd-plus').style.display = 'none';
   hideChip('entry-chip2','entry-dd2', false);
@@ -3004,6 +3008,7 @@ function resetEntryDD2() {
   if (tfState.structures) tfState.structures.entry[1] = null;
   hideChip('entry-chip2','entry-dd2');
   document.getElementById('entry-dd2').value = '';
+  document.getElementById('entry-dd-plus').style.display = 'none';
   renderTFDependentSections();
 }
 
@@ -3029,6 +3034,8 @@ function showEntryZone() {
 function hideEntryZone() {
   document.getElementById('tf-entry-zone-wrap').style.display = 'none';
   document.getElementById('entry-zone-chip').style.display = 'none';
+  document.getElementById('entry-zone-lbl').textContent = '';
+  document.getElementById('entry-zone-dd').style.display = 'block';
   document.getElementById('entry-zone-dd').value = '';
 }
 
@@ -3082,7 +3089,8 @@ function renderTfPanel() {
         var s2Dir = tfState.structures.dir[1];
         if (s2Dir) {
           var dd2Dir = document.getElementById('dir-dd2');
-          if (dd2Dir && dd2Dir.options.length <= 1) { buildDDOptions(dd2Dir, getAllowed2nd(s1Dir)); ddSetDisplay(dd2Dir, true); dd2Dir.value = s2Dir; document.getElementById('dir-dd-plus').style.display = 'inline'; }
+          if (dd2Dir && dd2Dir.options.length <= 1) { buildDDOptions(dd2Dir, getAllowed2nd(s1Dir)); }
+          if (dd2Dir) { ddSetDisplay(dd2Dir, true); dd2Dir.value = s2Dir; document.getElementById('dir-dd-plus').style.display = 'inline'; }
           var c2Dir = document.getElementById('dir-chip2');
           if (c2Dir && c2Dir.style.display !== 'flex') showChip('dir-chip2','dir-chip2-lbl','dir-dd2', s2Dir);
         }
@@ -3112,7 +3120,7 @@ function renderTfPanel() {
 
   // Planning TF
   var dirTfRank = tfState.dir ? (TF_ORDER[tfState.dir] || 99) : 99;
-  if (tfState.plan && (TF_ORDER[tfState.plan]||0) > dirTfRank) { tfState.plan = null; resetPlanDD(); }
+  if (tfState.plan && (TF_ORDER[tfState.plan]||99) > dirTfRank) { tfState.plan = null; resetPlanDD(); }
   var planC = document.getElementById('tf-plan-btns');
   planC.innerHTML = '';
   TF_PLAN.forEach(function(tf) {
@@ -3151,7 +3159,8 @@ function renderTfPanel() {
         var s2Plan = tfState.structures.plan[1];
         if (s2Plan) {
           var dd2Plan = document.getElementById('plan-dd2');
-          if (dd2Plan && dd2Plan.options.length <= 1) { buildDDOptions(dd2Plan, getAllowed2nd(s1Plan)); ddSetDisplay(dd2Plan, true); dd2Plan.value = s2Plan; document.getElementById('plan-dd-plus').style.display = 'inline'; }
+          if (dd2Plan && dd2Plan.options.length <= 1) { buildDDOptions(dd2Plan, getAllowed2nd(s1Plan)); }
+          if (dd2Plan) { ddSetDisplay(dd2Plan, true); dd2Plan.value = s2Plan; document.getElementById('plan-dd-plus').style.display = 'inline'; }
           var c2Plan = document.getElementById('plan-chip2');
           if (c2Plan && c2Plan.style.display !== 'flex') showChip('plan-chip2','plan-chip2-lbl','plan-dd2', s2Plan);
         }
@@ -3163,7 +3172,7 @@ function renderTfPanel() {
 
   // Entry TF
   var planTfRank = tfState.plan ? (TF_ORDER[tfState.plan] || 99) : 99;
-  if (tfState.entry && (TF_ORDER[tfState.entry]||0) > planTfRank) { tfState.entry = null; resetEntryDD(); hideEntryZone(); }
+  if (tfState.entry && (TF_ORDER[tfState.entry]||99) > planTfRank) { tfState.entry = null; resetEntryDD(); hideEntryZone(); }
   var entryC = document.getElementById('tf-entry-btns');
   entryC.innerHTML = '';
   ['S15','S30','M1','M5','M15','M30','H1','H4','Daily'].forEach(function(tf) {
@@ -3200,7 +3209,8 @@ function renderTfPanel() {
         var s2Entry = tfState.structures.entry[1];
         if (s2Entry) {
           var dd2Entry = document.getElementById('entry-dd2');
-          if (dd2Entry && dd2Entry.options.length <= 1) { buildDDOptions(dd2Entry, getAllowed2nd(s1Entry)); ddSetDisplay(dd2Entry, true); dd2Entry.value = s2Entry; document.getElementById('entry-dd-plus').style.display = 'inline'; }
+          if (dd2Entry && dd2Entry.options.length <= 1) { buildDDOptions(dd2Entry, getAllowed2nd(s1Entry)); }
+          if (dd2Entry) { ddSetDisplay(dd2Entry, true); dd2Entry.value = s2Entry; document.getElementById('entry-dd-plus').style.display = 'inline'; }
           var c2Entry = document.getElementById('entry-chip2');
           if (c2Entry && c2Entry.style.display !== 'flex') showChip('entry-chip2','entry-chip2-lbl','entry-dd2', s2Entry);
         }
