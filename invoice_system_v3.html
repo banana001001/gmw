@@ -403,7 +403,8 @@
           </div>
           <div class="field" style="max-width:170px;">
             <label>เลขที่เอกสาร</label>
-            <input id="f-docno" readonly>
+            <input id="f-docno">
+            <div class="be-date-hint" id="f-docno-hint">รันอัตโนมัติ (แก้ไขเองได้)</div>
           </div>
           <div class="field" style="max-width:170px;">
             <label>วันที่</label>
@@ -784,6 +785,20 @@ if (!localStorage.getItem(SEED_CUSTOMERS_2026_07_KEY)) {
 }
 
 let editingInvoiceId = null;
+let docNoManuallyEdited = false;
+function updateDocNoHint() {
+  const hint = document.getElementById('f-docno-hint');
+  if (!hint) return;
+  hint.innerHTML = docNoManuallyEdited
+    ? 'แก้ไขเองแล้ว · <a href="#" onclick="resetDocNoToAuto(event)" style="color:var(--accent);">ใช้เลขอัตโนมัติ</a>'
+    : 'รันอัตโนมัติ (แก้ไขเองได้)';
+}
+function resetDocNoToAuto(e) {
+  if (e) e.preventDefault();
+  docNoManuallyEdited = false;
+  document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
+  updateDocNoHint();
+}
 let editingCompanyId = null;
 
 function toast(msg) {
@@ -1078,9 +1093,13 @@ function refreshCompanySelect() {
   document.getElementById('no-company-warning').classList.toggle('show', companies.length===0);
 }
 document.getElementById('f-company-select').addEventListener('change', ()=>{
-  if (!editingInvoiceId) {
+  if (!editingInvoiceId && !docNoManuallyEdited) {
     document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
   }
+});
+document.getElementById('f-docno').addEventListener('input', ()=>{
+  docNoManuallyEdited = true;
+  updateDocNoHint();
 });
 function getSelectedCompany() {
   return companies.find(c=>c.id===document.getElementById('f-company-select').value) || null;
@@ -1134,7 +1153,9 @@ function saveCompany() {
   if (!editingInvoiceId) {
     const sel = document.getElementById('f-company-select');
     if (!sel.value) sel.value = obj.id;
-    document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
+    if (!docNoManuallyEdited) {
+      document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
+    }
   }
   toast('✅ บันทึกบริษัทแล้ว');
 }
@@ -1174,7 +1195,7 @@ function deleteCompany(id) {
   saveLS(LS_KEYS.companies, companies);
   renderCompanyList();
   refreshCompanySelect();
-  if (!editingInvoiceId) {
+  if (!editingInvoiceId && !docNoManuallyEdited) {
     document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
   }
 }
@@ -1200,7 +1221,7 @@ function renderCompanyList() {
 
 /* ============ Invoice form ============ */
 function getPeriod(dateStr) {
-  const d = dateStr ? new Date(dateStr) : new Date();
+  const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   const beYear = (d.getFullYear() + 543) % 100;
   const month = String(d.getMonth()+1).padStart(2,'0');
   return String(beYear).padStart(2,'0') + month;
@@ -1223,6 +1244,7 @@ function getDefaultCompanyId() {
 }
 function resetForm() {
   editingInvoiceId = null;
+  docNoManuallyEdited = false;
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
   refreshCompanySelect();
   if (!formCompanyInitialized) {
@@ -1233,6 +1255,7 @@ function resetForm() {
     document.getElementById('f-company-select').value = getDefaultCompanyId();
   }
   document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
+  updateDocNoHint();
   document.getElementById('f-terms').value = 'เงินสด';
   document.getElementById('f-status').value = 'unpaid';
   document.getElementById('f-cust-select').value = '';
@@ -1245,7 +1268,7 @@ function resetForm() {
 }
 document.getElementById('f-date').addEventListener('change', ()=>{
   updateDateHint();
-  if (!editingInvoiceId) {
+  if (!editingInvoiceId && !docNoManuallyEdited) {
     document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
   }
 });
@@ -1256,7 +1279,7 @@ function collectFormData() {
     const name = tr.querySelector('.it-name').value.trim();
     const qty = parseFloat(tr.querySelector('.it-qty').value)||0;
     const price = parseFloat(tr.querySelector('.it-price').value)||0;
-    if (name || qty || price) items.push({name, qty, price});
+    if (name) items.push({name, qty, price});
   });
   const company = getSelectedCompany();
   return {
@@ -1298,6 +1321,12 @@ function saveInvoice() {
   if (!data.companyId) { toast('⚠️ กรุณาเลือกบริษัทผู้ออกบิล'); return; }
   if (!data.customer.name) { toast('⚠️ กรุณากรอกชื่อลูกค้า'); return; }
   if (!data.items.length) { toast('⚠️ กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ'); return; }
+  if (!data.docNo.trim()) { toast('⚠️ กรุณากรอกเลขที่เอกสาร'); return; }
+
+  const dupInvoice = invoices.find(i => i.docNo === data.docNo && i.id !== editingInvoiceId);
+  if (dupInvoice) {
+    if (!confirm(`เลขที่เอกสาร "${data.docNo}" ถูกใช้ไปแล้วกับบิลของ "${dupInvoice.customer.name}" (${dupInvoice.date})\n\nยืนยันจะบันทึกโดยใช้เลขที่ซ้ำกันหรือไม่?`)) return;
+  }
 
   const prevInvoice = editingInvoiceId ? invoices.find(i=>i.id===editingInvoiceId) : null;
   data.paidDate = data.status === 'paid'
@@ -1328,6 +1357,8 @@ function loadInvoiceToForm(id) {
   const inv = invoices.find(i=>i.id===id);
   if (!inv) return;
   editingInvoiceId = id;
+  docNoManuallyEdited = false;
+  updateDocNoHint();
   refreshCompanySelect();
   document.getElementById('f-company-select').value = inv.companyId || '';
   document.getElementById('f-docno').value = inv.docNo;
@@ -1353,6 +1384,8 @@ function duplicateInvoice(id) {
   const inv = invoices.find(i=>i.id===id);
   if (!inv) return;
   editingInvoiceId = null;
+  docNoManuallyEdited = false;
+  updateDocNoHint();
   refreshCompanySelect();
   document.getElementById('f-company-select').value = inv.companyId || '';
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
@@ -1393,18 +1426,18 @@ function renderHistory() {
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const body = document.getElementById('hist-body');
   const filtered = invoices
-    .filter(inv => !q || inv.docNo.toLowerCase().includes(q) || inv.customer.name.toLowerCase().includes(q))
+    .filter(inv => !q || (inv.docNo||'').toLowerCase().includes(q) || ((inv.customer&&inv.customer.name)||'').toLowerCase().includes(q))
     .sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
   if (!filtered.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">ไม่พบข้อมูล</td></tr>'; return; }
   body.innerHTML = filtered.map(inv=>{
     const paid = (inv.status||'unpaid') === 'paid';
     return `
     <tr>
-      <td>${inv.docNo}</td>
-      <td>${inv.date}</td>
+      <td>${inv.docNo||'-'}</td>
+      <td>${inv.date||'-'}</td>
       <td>${companyNameForInvoice(inv)}</td>
-      <td>${inv.customer.name}</td>
-      <td class="num">${inv.total.toFixed(2)}</td>
+      <td>${(inv.customer&&inv.customer.name)||'-'}</td>
+      <td class="num">${(inv.total||0).toFixed(2)}</td>
       <td><span class="badge ${paid?'badge-paid':'badge-unpaid'}" style="cursor:pointer;" onclick="togglePaymentStatus('${inv.id}')" title="คลิกเพื่อสลับสถานะ">${paid?'ชำระแล้ว':'รอชำระ'}</span></td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="loadInvoiceToForm('${inv.id}')">แก้ไข</button>
@@ -1620,11 +1653,11 @@ function renderBatchList() {
     body.innerHTML = list.map(inv=>`
       <tr>
         <td class="chk"><input type="checkbox" data-invid="${inv.id}" ${batchSelectedIds.has(inv.id)?'checked':''} onchange="toggleBatchSelect('${inv.id}', this.checked)"></td>
-        <td>${inv.docNo}</td>
-        <td>${inv.date}</td>
+        <td>${inv.docNo||'-'}</td>
+        <td>${inv.date||'-'}</td>
         <td>${companyNameForInvoice(inv)}</td>
-        <td>${inv.customer.name}</td>
-        <td class="num">${inv.total.toFixed(2)}</td>
+        <td>${(inv.customer&&inv.customer.name)||'-'}</td>
+        <td class="num">${(inv.total||0).toFixed(2)}</td>
       </tr>
     `).join('');
   }
