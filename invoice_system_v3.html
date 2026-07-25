@@ -457,7 +457,7 @@
               <th style="width:34px;">#</th>
               <th>รายการ</th>
               <th style="width:80px;">จำนวน</th>
-              <th style="width:120px;">ราคาต่อหน่วย</th>
+              <th style="width:120px;">ราคาต่อหน่วย (รวม VAT)</th>
               <th style="width:120px;">จำนวนเงิน</th>
               <th style="width:40px;"></th>
             </tr>
@@ -546,7 +546,7 @@
         <input type="hidden" id="p-id">
         <div class="field-row">
           <div class="field"><label>ชื่อสินค้า/บริการ</label><input id="p-name"></div>
-          <div class="field" style="max-width:160px;"><label>ราคาต่อหน่วย (ค่าเริ่มต้น)</label><input id="p-price" type="number" min="0" step="0.01"></div>
+          <div class="field" style="max-width:180px;"><label>ราคาต่อหน่วย (ค่าเริ่มต้น, รวม VAT)</label><input id="p-price" type="number" min="0" step="0.01"></div>
           <div class="field" style="max-width:140px;"><label>หน่วยนับ</label><input id="p-unit" placeholder="ชิ้น / ชม. / งาน"></div>
         </div>
         <div class="btn-row">
@@ -912,6 +912,9 @@ function toThaiBEDate(dateStr) {
 }
 
 function recalc() {
+  // ราคาต่อหน่วยที่กรอกเป็นราคาที่รวม VAT 7% อยู่แล้ว (VAT-inclusive pricing):
+  // รวมเงิน/ส่วนลด/รวมทั้งสิ้น คำนวณจากราคารวม VAT โดยตรง ส่วนมูลค่าก่อนภาษี
+  // และ VAT ที่แสดงเป็นการหักย้อนกลับออกมาจากยอดรวมนั้น (ไม่ได้บวกเพิ่มเข้าไปอีก)
   let subtotal = 0;
   document.querySelectorAll('#items-body tr').forEach(tr=>{
     const qty = parseFloat(tr.querySelector('.it-qty').value)||0;
@@ -921,9 +924,9 @@ function recalc() {
     subtotal += amt;
   });
   const discount = parseFloat(document.getElementById('f-discount').value)||0;
-  const beforeVat = Math.max(subtotal - discount, 0);
-  const vat = beforeVat * 0.07;
-  const total = beforeVat + vat;
+  const total = Math.max(subtotal - discount, 0);
+  const beforeVat = total / 1.07;
+  const vat = total - beforeVat;
   document.getElementById('t-subtotal').textContent = subtotal.toFixed(2);
   document.getElementById('t-beforevat').textContent = beforeVat.toFixed(2);
   document.getElementById('t-vat').textContent = vat.toFixed(2);
@@ -1210,12 +1213,23 @@ function peekDocNo(company, dateStr) {
 function updateDateHint() {
   document.getElementById('f-date-be').textContent = toThaiBEDate(document.getElementById('f-date').value);
 }
+const DEFAULT_COMPANY_TAX = '0905561002009'; // บริษัท ดีทีบี เมดิค จำกัด — ค่าเริ่มต้นตอนออกบิล
+let formCompanyInitialized = false;
+function getDefaultCompanyId() {
+  const preferred = companies.find(c => c.tax === DEFAULT_COMPANY_TAX);
+  if (preferred) return preferred.id;
+  return companies.length ? companies[0].id : '';
+}
 function resetForm() {
   editingInvoiceId = null;
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
   refreshCompanySelect();
-  if (!document.getElementById('f-company-select').value && companies.length) {
-    document.getElementById('f-company-select').value = companies[0].id;
+  if (!formCompanyInitialized) {
+    // very first time the form is set up this session: force the preferred default company
+    document.getElementById('f-company-select').value = getDefaultCompanyId();
+    formCompanyInitialized = true;
+  } else if (!document.getElementById('f-company-select').value && companies.length) {
+    document.getElementById('f-company-select').value = getDefaultCompanyId();
   }
   document.getElementById('f-docno').value = peekDocNo(getSelectedCompany(), document.getElementById('f-date').value);
   document.getElementById('f-terms').value = 'เงินสด';
@@ -1486,7 +1500,7 @@ function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
       </div>
     </div>
     <table class="items">
-      <thead><tr><th style="width:32px">ลำดับ</th><th>รายการ</th><th style="width:60px">จำนวน</th><th style="width:90px">ราคาต่อหน่วย</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
+      <thead><tr><th style="width:32px">ลำดับ</th><th>รายการ</th><th style="width:60px">จำนวน</th><th style="width:90px">ราคาต่อหน่วย<br>(รวม VAT)</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
       <tbody>
         ${data.items.map((it,i)=>`
         <tr>
