@@ -176,6 +176,8 @@
   table.hist-table tbody tr:nth-child(odd) { background:var(--row-odd-bg); }
   table.hist-table tbody tr:hover { background:var(--accent-light); }
   table.hist-table td.num { text-align:right; }
+  .hist-month-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px; }
+  .hist-month-label { font-size:16px; font-weight:700; min-width:150px; text-align:center; }
   .search-bar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
   .search-bar input { flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:18px; }
   .search-bar input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
@@ -281,7 +283,7 @@
     width:186mm; min-height:273mm; background:#fff; padding:0; margin:0 auto 10px auto;
     font-size:14.5px; color:#3A3A38; page-break-after: always;
   }
-  .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1B3A5C; padding-bottom:6px; margin-bottom:8px; }
+  .doc-header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:6px; margin-bottom:0; }
   .company-block { display:flex; gap:10px; align-items:flex-start; }
   .logo-box { width:60px; height:60px; border:1px dashed #999; display:flex; align-items:center; justify-content:center; font-size:11px; color:#999; text-align:center; flex-shrink:0; overflow:hidden; }
   .logo-box img { max-width:100%; max-height:100%; }
@@ -292,12 +294,13 @@
   .doc-title-block .subtitle { font-size:12.5px; color:#3A3A38; margin-top:2px; }
   .copy-tag { display:inline-block; margin-top:6px; padding:3px 10px; border:1px solid #3A3A38; font-size:13.5px; font-weight:600; }
   .copy-tag.original { background:#1B3A5C; color:#fff; border-color:#1B3A5C; }
-  .meta-row { display:flex; justify-content:space-between; gap:16px; margin-bottom:0; }
+  /* Replaces the old plain border-bottom under the doc-header — same gradient as before, now full width to match what it replaced */
   .divider-gradient {
     height: 3px;
     background: linear-gradient(90deg, #1B3A5C 0%, #3A3A38 50%, #7A2E2E 100%);
-    margin: 12px 36px;
+    margin: 0 0 8px 0;
   }
+  .meta-row { display:flex; justify-content:space-between; gap:16px; margin-bottom:10px; }
   .meta-box { border:1px solid #999; border-radius:4px; padding:6px 10px; flex:1; }
   .meta-box .label { font-size:13px; color:#666; font-weight:600; margin-bottom:3px; }
   .meta-box .val { font-size:13.5px; margin-bottom:2px; }
@@ -504,8 +507,13 @@
     <div class="page" id="page-history">
       <div class="content-header"><div><h2>📚 ประวัติบิล</h2><div class="sub">ค้นหา แก้ไข พิมพ์ซ้ำ หรือลบบิลย้อนหลัง</div></div></div>
       <div class="card">
+        <div class="hist-month-nav">
+          <button class="btn btn-secondary btn-sm" onclick="histPrevMonth()">‹ เดือนก่อน</button>
+          <span id="hist-month-label" class="hist-month-label"></span>
+          <button class="btn btn-secondary btn-sm" onclick="histNextMonth()">เดือนถัดไป ›</button>
+        </div>
         <div class="search-bar">
-          <input id="hist-search" placeholder="ค้นหาเลขที่บิล / ชื่อลูกค้า..." oninput="renderHistory()">
+          <input id="hist-search" placeholder="ค้นหาเลขที่บิล / ชื่อลูกค้า (ในเดือนนี้)..." oninput="renderHistory()">
           <button class="btn btn-secondary" onclick="exportData()">⬇️ Export JSON</button>
           <label class="btn btn-secondary" style="cursor:pointer;">
             ⬆️ Import JSON
@@ -514,7 +522,7 @@
         </div>
         <table class="hist-table">
           <thead>
-            <tr><th>เลขที่</th><th>วันที่</th><th>บริษัท</th><th>ลูกค้า</th><th class="num">ยอดรวม</th><th>สถานะ</th><th>จัดการ</th></tr>
+            <tr><th>เลขที่</th><th>วันที่</th><th>บริษัท</th><th>ลูกค้า</th><th>รายการ</th><th class="num">ยอดรวม</th><th>สถานะ</th><th>จัดการ</th></tr>
           </thead>
           <tbody id="hist-body"></tbody>
         </table>
@@ -675,6 +683,24 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="items-modal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-head">
+      <h3>🧾 รายการสินค้าในบิล <span id="items-modal-docno"></span></h3>
+      <button class="btn btn-secondary btn-sm" onclick="closeItemsModal()">✕ ปิด</button>
+    </div>
+    <div class="modal-body" style="background:var(--bg);">
+      <table class="hist-table">
+        <thead><tr><th>รายการ</th><th class="num">จำนวน</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th></tr></thead>
+        <tbody id="items-modal-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeItemsModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -819,7 +845,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('page-'+btn.dataset.page).classList.add('active');
     if (btn.dataset.page==='dashboard') { refreshDashboardCompanySelect(); renderDashboard(); }
-    if (btn.dataset.page==='history') renderHistory();
+    if (btn.dataset.page==='history') { updateHistMonthLabel(); renderHistory(); }
     if (btn.dataset.page==='customers') renderCustomerList();
     if (btn.dataset.page==='companies') renderCompanyList();
     if (btn.dataset.page==='batch') { refreshBatchCompanySelect(); renderBatchList(); }
@@ -1341,13 +1367,59 @@ function togglePaymentStatus(id) {
 function companyNameForInvoice(inv) {
   return resolveInvoiceCompany(inv).name || '-';
 }
+
+/* ============ History: month pagination ============ */
+let historyViewMonth = new Date().toISOString().slice(0,7);
+function updateHistMonthLabel() {
+  const [y,m] = historyViewMonth.split('-').map(Number);
+  document.getElementById('hist-month-label').textContent = THAI_MONTHS_FULL[m-1] + ' ' + (y+543);
+}
+function shiftHistoryMonth(delta) {
+  const d = new Date(historyViewMonth + '-01T00:00:00');
+  d.setMonth(d.getMonth() + delta);
+  historyViewMonth = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  updateHistMonthLabel();
+  renderHistory();
+}
+function histPrevMonth() { shiftHistoryMonth(-1); }
+function histNextMonth() { shiftHistoryMonth(1); }
+
+function historyItemsCell(inv) {
+  const items = inv.items || [];
+  if (!items.length) return '-';
+  if (items.length === 1) {
+    const it = items[0];
+    return `${it.name||'-'} (x${it.qty||0})`;
+  }
+  return `<button class="btn btn-secondary btn-sm" onclick="showItemsModal('${inv.id}')">${items.length} รายการ</button>`;
+}
+function showItemsModal(id) {
+  const inv = invoices.find(i=>i.id===id);
+  if (!inv) return;
+  const items = inv.items || [];
+  document.getElementById('items-modal-docno').textContent = inv.docNo ? ('· ' + inv.docNo) : '';
+  document.getElementById('items-modal-body').innerHTML = items.map(it=>`
+    <tr>
+      <td>${it.name||'-'}</td>
+      <td class="num">${it.qty||0}</td>
+      <td class="num">${(it.price||0).toFixed(2)}</td>
+      <td class="num">${((it.qty||0)*(it.price||0)).toFixed(2)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('items-modal').classList.add('show');
+}
+function closeItemsModal() {
+  document.getElementById('items-modal').classList.remove('show');
+}
+
 function renderHistory() {
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const body = document.getElementById('hist-body');
   const filtered = invoices
+    .filter(inv => (inv.date||'').slice(0,7) === historyViewMonth)
     .filter(inv => !q || (inv.docNo||'').toLowerCase().includes(q) || ((inv.customer&&inv.customer.name)||'').toLowerCase().includes(q))
     .sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
-  if (!filtered.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">ไม่พบข้อมูล</td></tr>'; return; }
+  if (!filtered.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">ไม่พบข้อมูลในเดือนนี้</td></tr>'; return; }
   body.innerHTML = filtered.map(inv=>{
     const paid = (inv.status||'unpaid') === 'paid';
     return `
@@ -1356,6 +1428,7 @@ function renderHistory() {
       <td>${inv.date||'-'}</td>
       <td>${companyNameForInvoice(inv)}</td>
       <td>${(inv.customer&&inv.customer.name)||'-'}</td>
+      <td>${historyItemsCell(inv)}</td>
       <td class="num">${(inv.total||0).toFixed(2)}</td>
       <td><span class="badge ${paid?'badge-paid':'badge-unpaid'}" style="cursor:pointer;" onclick="togglePaymentStatus('${inv.id}')" title="คลิกเพื่อสลับสถานะ">${paid?'ชำระแล้ว':'รอชำระ'}</span></td>
       <td>
@@ -1435,6 +1508,7 @@ function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
         <div class="copy-tag ${copyClass}">${copy}</div>
       </div>
     </div>
+    <div class="divider-gradient"></div>
     <div class="meta-row">
       <div class="meta-box" style="flex:2">
         <div class="label">ลูกค้า / CUSTOMER</div>
@@ -1450,7 +1524,6 @@ function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
         </table>
       </div>
     </div>
-    <div class="divider-gradient"></div>
     <table class="items">
       <thead><tr><th style="width:32px">ลำดับ</th><th>รายการ</th><th style="width:60px">จำนวน</th><th style="width:90px">ราคาต่อหน่วย<br>(รวม VAT)</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
       <tbody>
@@ -1767,8 +1840,10 @@ function renderDashboard() {
 /* ============ Keyboard shortcuts ============ */
 document.addEventListener('keydown', (e)=>{
   const modalOpen = document.getElementById('preview-modal').classList.contains('show');
+  const itemsModalOpen = document.getElementById('items-modal').classList.contains('show');
   if (e.key === 'Escape') {
     if (modalOpen) closePreview();
+    if (itemsModalOpen) closeItemsModal();
     return;
   }
   if (!(e.ctrlKey || e.metaKey)) return;
@@ -1794,6 +1869,7 @@ renderCompanyList();
 updateCompanyDocPreview();
 refreshDashboardCompanySelect();
 renderDashboard();
+updateHistMonthLabel();
 </script>
 
 </body>
