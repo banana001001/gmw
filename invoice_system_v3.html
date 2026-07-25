@@ -484,7 +484,8 @@
               <th style="width:34px;">#</th>
               <th>รายการ</th>
               <th style="width:80px;">จำนวน</th>
-              <th style="width:120px;">ราคาต่อหน่วย (รวม VAT)</th>
+              <th style="width:90px;">หน่วยนับ</th>
+              <th style="width:120px;">ราคาต่อหน่วย</th>
               <th style="width:120px;">จำนวนเงิน</th>
               <th style="width:40px;"></th>
             </tr>
@@ -578,7 +579,7 @@
         <input type="hidden" id="p-id">
         <div class="field-row">
           <div class="field"><label>ชื่อสินค้า/บริการ</label><input id="p-name"></div>
-          <div class="field" style="max-width:180px;"><label>ราคาต่อหน่วย (ค่าเริ่มต้น, รวม VAT)</label><input id="p-price" type="number" min="0" step="0.01"></div>
+          <div class="field" style="max-width:180px;"><label>ราคาต่อหน่วย (ค่าเริ่มต้น)</label><input id="p-price" type="number" min="0" step="0.01"></div>
           <div class="field" style="max-width:140px;"><label>หน่วยนับ</label><input id="p-unit" placeholder="ชิ้น / ชม. / งาน"></div>
         </div>
         <div class="btn-row">
@@ -728,7 +729,7 @@
     </div>
     <div class="modal-body" style="background:var(--bg);">
       <table class="hist-table">
-        <thead><tr><th>รายการ</th><th class="num">จำนวน</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th></tr></thead>
+        <thead><tr><th>รายการ</th><th class="num">จำนวน</th><th>หน่วยนับ</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th></tr></thead>
         <tbody id="items-modal-body"></tbody>
       </table>
     </div>
@@ -964,6 +965,7 @@ function addItemRow(data) {
     <td class="rm" style="text-align:center;">${tbody.children.length+1}</td>
     <td><input class="it-name" list="product-datalist" value="${escapeAttr(data?data.name:'')}" oninput="onItemNameInput(this)"></td>
     <td class="num-col"><input class="it-qty" type="number" value="${data?data.qty:1}" min="0" readonly onclick="openQtyPopup(this)"></td>
+    <td><input class="it-unit" value="${escapeAttr(data?data.unit:'')}"></td>
     <td class="num-col"><input class="it-price" type="number" value="${data?data.price:0}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-amt" value="0.00" readonly style="background:var(--readonly-bg);"></td>
     <td class="rm"><button class="btn btn-danger btn-sm" onclick="removeItemRow(this)">✕</button></td>
@@ -974,8 +976,11 @@ function addItemRow(data) {
 function onItemNameInput(input) {
   const product = products.find(p=>p.name===input.value.trim());
   if (product) {
-    const priceInput = input.closest('tr').querySelector('.it-price');
+    const tr = input.closest('tr');
+    const priceInput = tr.querySelector('.it-price');
     if (!parseFloat(priceInput.value)) priceInput.value = product.price;
+    const unitInput = tr.querySelector('.it-unit');
+    if (!unitInput.value.trim() && product.unit) unitInput.value = product.unit;
   }
   recalc();
 }
@@ -1388,8 +1393,9 @@ function collectFormData() {
   document.querySelectorAll('#items-body tr').forEach(tr=>{
     const name = tr.querySelector('.it-name').value.trim();
     const qty = parseFloat(tr.querySelector('.it-qty').value)||0;
+    const unit = tr.querySelector('.it-unit').value.trim();
     const price = parseFloat(tr.querySelector('.it-price').value)||0;
-    if (name) items.push({name, qty, price});
+    if (name) items.push({name, qty, unit, price});
   });
   const company = getSelectedCompany();
   return {
@@ -1554,7 +1560,7 @@ function historyItemsCell(inv) {
   if (!items.length) return '-';
   if (items.length === 1) {
     const it = items[0];
-    return `${it.name||'-'} (x${it.qty||0})`;
+    return `${it.name||'-'} (x${it.qty||0}${it.unit?(' '+it.unit):''})`;
   }
   return `<button class="btn btn-secondary btn-sm" onclick="showItemsModal('${inv.id}')">${items.length} รายการ</button>`;
 }
@@ -1567,6 +1573,7 @@ function showItemsModal(id) {
     <tr>
       <td>${it.name||'-'}</td>
       <td class="num">${it.qty||0}</td>
+      <td>${it.unit||'-'}</td>
       <td class="num">${(it.price||0).toFixed(2)}</td>
       <td class="num">${((it.qty||0)*(it.price||0)).toFixed(2)}</td>
     </tr>
@@ -1713,17 +1720,18 @@ function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
       </div>
     </div>
     <table class="items">
-      <thead><tr><th style="width:32px">ลำดับ</th><th>รายการ</th><th style="width:60px">จำนวน</th><th style="width:90px">ราคาต่อหน่วย<br>(รวม VAT)</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
+      <thead><tr><th style="width:32px">ลำดับ</th><th>รายการ</th><th style="width:55px">จำนวน</th><th style="width:60px">หน่วยนับ</th><th style="width:90px">ราคาต่อหน่วย</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
       <tbody>
         ${data.items.map((it,i)=>`
         <tr>
           <td class="center">${i+1}</td>
           <td>${it.name}</td>
           <td class="num">${it.qty}</td>
+          <td class="center">${it.unit||'-'}</td>
           <td class="num">${it.price.toFixed(2)}</td>
           <td class="num">${(it.qty*it.price).toFixed(2)}</td>
         </tr>`).join('')}
-        ${Array.from({length: Math.max(0,6-data.items.length)}).map(()=>`<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>`).join('')}
+        ${Array.from({length: Math.max(0,6-data.items.length)}).map(()=>`<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
       </tbody>
     </table>
     <div class="summary-row">
