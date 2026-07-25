@@ -273,21 +273,22 @@
   /* ===== Print sheet (unchanged design — official document) ===== */
   /* ============================================================ */
   #printArea { display:none; }
+  /* Print palette: Navy #1B3A5C / Soft Black #3A3A38 / Burgundy #7A2E2E — print sheet only, does not touch app UI theme colors */
   .sheet {
     width:186mm; min-height:273mm; background:#fff; padding:0; margin:0 auto 10px auto;
-    font-size:13px; color:#111; page-break-after: always;
+    font-size:13px; color:#3A3A38; page-break-after: always;
   }
-  .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:10px; }
+  .doc-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1B3A5C; padding-bottom:8px; margin-bottom:10px; }
   .company-block { display:flex; gap:10px; align-items:flex-start; }
   .logo-box { width:60px; height:60px; border:1px dashed #999; display:flex; align-items:center; justify-content:center; font-size:10px; color:#999; text-align:center; flex-shrink:0; overflow:hidden; }
   .logo-box img { max-width:100%; max-height:100%; }
-  .company-info .name { font-size:16px; font-weight:700; }
-  .company-info .line { font-size:11.5px; color:#333; line-height:1.5; }
+  .company-info .name { font-size:16px; font-weight:700; color:#1B3A5C; }
+  .company-info .line { font-size:11.5px; color:#3A3A38; line-height:1.5; }
   .doc-title-block { text-align:right; min-width:200px; }
-  .doc-title-block .title { font-size:16px; font-weight:700; }
-  .doc-title-block .subtitle { font-size:11px; color:#333; margin-top:2px; }
-  .copy-tag { display:inline-block; margin-top:6px; padding:3px 10px; border:1px solid #111; font-size:12px; font-weight:600; }
-  .copy-tag.original { background:#111; color:#fff; }
+  .doc-title-block .title { font-size:16px; font-weight:700; color:#1B3A5C; }
+  .doc-title-block .subtitle { font-size:11px; color:#3A3A38; margin-top:2px; }
+  .copy-tag { display:inline-block; margin-top:6px; padding:3px 10px; border:1px solid #3A3A38; font-size:12px; font-weight:600; }
+  .copy-tag.original { background:#1B3A5C; color:#fff; border-color:#1B3A5C; }
   .meta-row { display:flex; justify-content:space-between; gap:16px; margin-bottom:10px; }
   .meta-box { border:1px solid #999; border-radius:4px; padding:8px 10px; flex:1; }
   .meta-box .label { font-size:10.5px; color:#666; font-weight:600; margin-bottom:3px; }
@@ -297,7 +298,7 @@
   .doc-no-box table td:first-child { color:#666; width:70px; }
   table.items { width:100%; border-collapse:collapse; margin-bottom:8px; }
   table.items th, table.items td { border:1px solid #999; padding:5px 6px; font-size:12px; }
-  table.items th { background:#f0f0f0; text-align:center; font-weight:600; }
+  table.items th { background:#3A3A38; color:#fff; text-align:center; font-weight:600; }
   table.items td.num { text-align:right; }
   table.items td.center { text-align:center; }
   table.items tbody tr { height:22px; }
@@ -309,7 +310,7 @@
   .totals td { padding:4px 8px; font-size:12px; }
   .totals td.lbl { color:#444; }
   .totals td.amt { text-align:right; font-weight:600; }
-  .totals tr.grand { background:#111; color:#fff; }
+  .totals tr.grand { background:#7A2E2E; color:#fff; }
   .totals tr.grand td { font-weight:700; }
   .footer-row { display:flex; justify-content:space-between; margin-top:26px; }
   .note-box { flex:1; font-size:11px; color:#555; padding-right:20px; }
