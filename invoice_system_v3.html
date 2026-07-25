@@ -1988,13 +1988,15 @@ function renderBillingStatementSheet(custName, invList) {
   const cust = firstInv.customer || { name: custName, tax:'', address:'', branch:'', phone:'' };
   let grandTotal = 0;
   let rows = '';
+  let rowNo = 0;
   sorted.forEach(inv => {
     const items = (inv.items && inv.items.length) ? inv.items : [{ name:'-', qty:0, unit:'', price:0 }];
     items.forEach((it,idx) => {
+      rowNo++;
       rows += `
         <tr>
+          <td class="center">${rowNo}</td>
           <td class="center">${idx===0 ? (inv.docNo||'-') : ''}</td>
-          <td class="center">${idx===0 ? toThaiBEDate(inv.date) : ''}</td>
           <td>${it.name||'-'}</td>
           <td class="num">${it.qty||0}</td>
           <td class="center">${it.unit||'-'}</td>
@@ -2036,7 +2038,7 @@ function renderBillingStatementSheet(custName, invList) {
       </div>
     </div>
     <table class="items">
-      <thead><tr><th style="width:75px">เลขที่บิล</th><th style="width:70px">วันที่</th><th>รายการ</th><th style="width:45px">จำนวน</th><th style="width:55px">หน่วยนับ</th><th style="width:75px">ราคาต่อหน่วย</th><th style="width:85px">จำนวนเงิน</th></tr></thead>
+      <thead><tr><th style="width:32px">ลำดับ</th><th style="width:80px">เลขที่บิล</th><th>รายการ</th><th style="width:55px">จำนวน</th><th style="width:60px">หน่วยนับ</th><th style="width:90px">ราคาต่อหน่วย</th><th style="width:100px">จำนวนเงิน</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="summary-row">
