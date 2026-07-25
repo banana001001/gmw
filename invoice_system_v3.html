@@ -748,6 +748,40 @@ if (!localStorage.getItem(SEED_DTBMEDIC_KEY)) {
   localStorage.setItem(SEED_DTBMEDIC_KEY, '1');
 }
 
+/* One-time seed: add a starting batch of customers if they aren't already
+   present (matched by tax id or name). Only ever pushes into the array —
+   never touches or removes existing customers — and only runs once per
+   browser, guarded by its own flag, so manually deleting one afterward sticks. */
+const SEED_CUSTOMERS_2026_07_KEY = 'invApp_seed_customers_2026_07';
+if (!localStorage.getItem(SEED_CUSTOMERS_2026_07_KEY)) {
+  const seedCustomers = [
+    { name:'ร้านชลพรรษา ซัพพลาย', tax:'3430600393918', address:'50/1 หมู่ 6 ตำบลคำแก้ว อำเภอโซ่พิสัย จังหวัดบึงกาฬ 38170', phone:'' },
+    { name:'ห้างหุ้นส่วนจำกัด เอสพี เมดดิเทค', tax:'0523556001166', address:'702/15 ม.3 ถ.เลี่ยงเมือง(สายเอเซีย) ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110', phone:'' },
+    { name:'บริษัท โปร เทคนิคัล จำกัด', tax:'0105545054439', address:'127/75 หมู่บ้าน ณัฐกานต์ ซอยสายไหม 64 ถนนสายไหม แขวงสายไหม เขตสายไหม กรุงเทพฯ 10220', phone:'' },
+    { name:'เมดิ ก๊อต โดย นายศิรสิทธิ์ เจนใจ', tax:'3560500252483', address:'62/280 ม.7 ต.บางแม่นาง อ.บางใหญ่ จ.นนทบุรี 11140', phone:'' },
+    { name:'หจก. พลณาศักดิ์ เทรดดิ้ง', tax:'0903563002390', address:'28 ซ.1 ราษฎร์ดำริ ต.หาดใหญ่ อ.หาดใหญ่ จ.สงขลา 90110', phone:'' },
+    { name:'บริษัท ดำรงค์ ธัญญา จำกัด', tax:'0905562000565', address:'11, 13 ถ.จันทคาร 2 อ.หาดใหญ่ จ.สงขลา 90110', phone:'' },
+    { name:'รพ.ค่ายวชิราวุธ', tax:'5000011523', address:'283 หมู่ 1 ถนนราชดำเนิน ต.ปากพูน อ.เมืองนครศรีธรรมราช จ.นครศรีธรรมราช 80000', phone:'' }
+  ];
+  let addedAny = false;
+  seedCustomers.forEach((sc, i) => {
+    const dup = customers.some(c => c.tax === sc.tax || c.name === sc.name);
+    if (!dup) {
+      customers.push({
+        id: 'c' + Date.now() + '_' + i,
+        name: sc.name,
+        tax: sc.tax,
+        branch: 'สำนักงานใหญ่',
+        address: sc.address,
+        phone: sc.phone
+      });
+      addedAny = true;
+    }
+  });
+  if (addedAny) saveLS(LS_KEYS.customers, customers);
+  localStorage.setItem(SEED_CUSTOMERS_2026_07_KEY, '1');
+}
+
 let editingInvoiceId = null;
 let editingCompanyId = null;
 
