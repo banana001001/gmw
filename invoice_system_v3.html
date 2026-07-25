@@ -156,6 +156,7 @@
   table.items-table input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   table.items-table input[type=number] { -moz-appearance:textfield; }
   table.items-table input.it-qty { cursor:pointer; background:var(--readonly-bg); }
+  table.items-table input.it-unit { cursor:pointer; background:var(--readonly-bg); text-align:center; }
 
   .qty-preset-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
   .qty-preset-grid .btn { padding:14px 6px; font-size:17.5px; }
@@ -655,6 +656,12 @@
               <option value="">-- ทุกบริษัท --</option>
             </select>
           </div>
+          <div class="field" style="max-width:240px;">
+            <label>ลูกค้า</label>
+            <select id="batch-customer" onchange="renderBatchList()">
+              <option value="">-- ทุกลูกค้า --</option>
+            </select>
+          </div>
           <div class="field" style="max-width:170px;">
             <label>เฉพาะวัน</label>
             <input id="batch-date" type="date" onchange="renderBatchList()">
@@ -696,6 +703,7 @@
         <div class="btn-row">
           <button class="btn btn-primary" onclick="printBatch()">🖨️ พิมพ์ทั้งชุด</button>
           <button class="btn btn-secondary" onclick="exportBatchPDF()">📄 Export รวมเป็น PDF ไฟล์เดียว</button>
+          <button class="btn btn-secondary" onclick="printBillingStatements()">🧾 พิมพ์สรุปใบวางบิล (ตามลูกค้า)</button>
         </div>
       </div>
     </div>
@@ -767,6 +775,27 @@
       <div class="qty-custom-row">
         <input type="number" id="qty-custom-input" min="0" placeholder="กำหนดเอง" onkeydown="if(event.key==='Enter') pickQtyCustom()">
         <button class="btn btn-primary" onclick="pickQtyCustom()">ตกลง</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="unit-popup-modal">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-head">
+      <h3>📏 เลือกหน่วยนับ</h3>
+      <button class="btn btn-secondary btn-sm" onclick="closeUnitPopup()">✕ ปิด</button>
+    </div>
+    <div class="modal-body" style="background:var(--card-bg);">
+      <div class="qty-preset-grid" style="grid-template-columns:repeat(2,1fr);">
+        <button class="btn btn-secondary" onclick="pickUnitPreset('ชิ้น')">ชิ้น</button>
+        <button class="btn btn-secondary" onclick="pickUnitPreset('กล่อง')">กล่อง</button>
+        <button class="btn btn-secondary" onclick="pickUnitPreset('ชุด')">ชุด</button>
+        <button class="btn btn-secondary" onclick="pickUnitPreset('แกลลอน')">แกลลอน</button>
+      </div>
+      <div class="qty-custom-row">
+        <input type="text" id="unit-custom-input" placeholder="กำหนดเอง" onkeydown="if(event.key==='Enter') pickUnitCustom()">
+        <button class="btn btn-primary" onclick="pickUnitCustom()">ตกลง</button>
       </div>
     </div>
   </div>
@@ -959,7 +988,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if (btn.dataset.page==='customers') renderCustomerList();
     if (btn.dataset.page==='products') renderProductList();
     if (btn.dataset.page==='companies') renderCompanyList();
-    if (btn.dataset.page==='batch') { refreshBatchCompanySelect(); renderBatchList(); }
+    if (btn.dataset.page==='batch') { refreshBatchCompanySelect(); refreshBatchCustomerSelect(); renderBatchList(); }
   });
 });
 
@@ -974,7 +1003,7 @@ function addItemRow(data) {
     <td class="rm" style="text-align:center;">${tbody.children.length+1}</td>
     <td><input class="it-name" list="product-datalist" value="${escapeAttr(data?data.name:'')}" oninput="onItemNameInput(this)"></td>
     <td class="num-col"><input class="it-qty" type="number" value="${data?data.qty:1}" min="0" readonly onclick="openQtyPopup(this)"></td>
-    <td><input class="it-unit" value="${escapeAttr(data?data.unit:'')}"></td>
+    <td><input class="it-unit" value="${escapeAttr(data&&data.unit?data.unit:'ชิ้น')}" readonly onclick="openUnitPopup(this)"></td>
     <td class="num-col"><input class="it-price" type="number" value="${data?data.price:0}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-amt" value="0.00" readonly style="background:var(--readonly-bg);"></td>
     <td class="rm"><button class="btn btn-danger btn-sm" onclick="removeItemRow(this)">✕</button></td>
@@ -989,7 +1018,8 @@ function onItemNameInput(input) {
     const priceInput = tr.querySelector('.it-price');
     if (!parseFloat(priceInput.value)) priceInput.value = product.price;
     const unitInput = tr.querySelector('.it-unit');
-    if (!unitInput.value.trim() && product.unit) unitInput.value = product.unit;
+    const curUnit = unitInput.value.trim();
+    if ((!curUnit || curUnit === 'ชิ้น') && product.unit) unitInput.value = product.unit;
   }
   recalc();
 }
@@ -1614,6 +1644,27 @@ function pickQtyCustom() {
   closeQtyPopup();
 }
 
+/* ============ Unit picker popup ============ */
+let unitPopupTargetInput = null;
+function openUnitPopup(inputEl) {
+  unitPopupTargetInput = inputEl;
+  document.getElementById('unit-custom-input').value = inputEl.value || '';
+  document.getElementById('unit-popup-modal').classList.add('show');
+}
+function closeUnitPopup() {
+  document.getElementById('unit-popup-modal').classList.remove('show');
+  unitPopupTargetInput = null;
+}
+function pickUnitPreset(val) {
+  if (unitPopupTargetInput) { unitPopupTargetInput.value = val; }
+  closeUnitPopup();
+}
+function pickUnitCustom() {
+  const val = document.getElementById('unit-custom-input').value.trim() || 'ชิ้น';
+  if (unitPopupTargetInput) { unitPopupTargetInput.value = val; }
+  closeUnitPopup();
+}
+
 function renderHistory() {
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const body = document.getElementById('hist-body');
@@ -1806,6 +1857,12 @@ function refreshBatchCompanySelect() {
   sel.innerHTML = '<option value="">-- ทุกบริษัท --</option>' + companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   if (companies.some(c=>c.id===cur)) sel.value = cur;
 }
+function refreshBatchCustomerSelect() {
+  const sel = document.getElementById('batch-customer');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- ทุกลูกค้า --</option>' + customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if (customers.some(c=>c.id===cur)) sel.value = cur;
+}
 function batchQuickSelect(kind) {
   const map = { taxorig:false, taxcopy:false, recorig:false, reccopy:false };
   if (kind==='first') { map.taxorig = true; map.taxcopy = true; }
@@ -1826,9 +1883,15 @@ function getCheckedBatchPages() {
 }
 function getFilteredBatchInvoices() {
   const companyId = document.getElementById('batch-company').value;
+  const customerId = document.getElementById('batch-customer').value;
   const mode = document.querySelector('input[name="batch-mode"]:checked').value;
   let list = invoices.slice();
   if (companyId) list = list.filter(i=>i.companyId===companyId);
+  if (customerId) {
+    const cust = customers.find(c=>c.id===customerId);
+    const custName = cust ? cust.name : null;
+    list = list.filter(i => i.customer && i.customer.name === custName);
+  }
   if (mode==='day') {
     const day = document.getElementById('batch-date').value;
     if (day) list = list.filter(i=>i.date===day);
@@ -1915,6 +1978,102 @@ function exportBatchPDF() {
     document.body.removeChild(container);
     toast('❌ Export PDF ไม่สำเร็จ');
   });
+}
+
+/* ============ Billing statement (ใบวางบิล) — summarized per customer ============ */
+function renderBillingStatementSheet(custName, invList) {
+  const sorted = invList.slice().sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.docNo||'').localeCompare(b.docNo||''));
+  const firstInv = sorted[0];
+  const co = resolveInvoiceCompany(firstInv);
+  const cust = firstInv.customer || { name: custName, tax:'', address:'', branch:'', phone:'' };
+  let grandTotal = 0;
+  let rows = '';
+  sorted.forEach(inv => {
+    const items = (inv.items && inv.items.length) ? inv.items : [{ name:'-', qty:0, unit:'', price:0 }];
+    items.forEach((it,idx) => {
+      rows += `
+        <tr>
+          <td class="center">${idx===0 ? (inv.docNo||'-') : ''}</td>
+          <td class="center">${idx===0 ? toThaiBEDate(inv.date) : ''}</td>
+          <td>${it.name||'-'}</td>
+          <td class="num">${it.qty||0}</td>
+          <td class="center">${it.unit||'-'}</td>
+          <td class="num">${(it.price||0).toFixed(2)}</td>
+          <td class="num">${((it.qty||0)*(it.price||0)).toFixed(2)}</td>
+        </tr>`;
+    });
+    grandTotal += inv.total||0;
+  });
+  return `
+  <div class="sheet">
+    <div class="doc-header">
+      <div class="company-block">
+        <div class="logo-box">${co.logo ? `<img src="${co.logo}">` : 'LOGO'}</div>
+        <div class="company-info">
+          <div class="name">${co.name}</div>
+          <div class="line">${co.address}</div>
+          <div class="line">เลขประจำตัวผู้เสียภาษี: ${co.tax} &nbsp;|&nbsp; โทร: ${co.phone}${co.email?(' &nbsp;|&nbsp; อีเมล: '+co.email):''}</div>
+        </div>
+      </div>
+      <div class="doc-title-block">
+        <div class="title">ใบวางบิล / ใบแจ้งหนี้</div>
+        <div class="subtitle">Billing Statement / Invoice</div>
+      </div>
+    </div>
+    <div class="divider-gradient"></div>
+    <div class="meta-row">
+      <div class="meta-box" style="flex:2">
+        <div class="label">ลูกค้า / CUSTOMER</div>
+        <div class="val">ชื่อลูกค้า: ${cust.name}</div>
+        <div class="val">ที่อยู่: ${cust.address||'-'}</div>
+        <div class="val">เลขผู้เสียภาษี: ${cust.tax||'-'} &nbsp; สาขา: ${cust.branch||'-'}</div>
+      </div>
+      <div class="meta-box doc-no-box">
+        <table>
+          <tr><td>จำนวนบิล</td><td>: ${sorted.length} ใบ</td></tr>
+          <tr><td>วันที่พิมพ์</td><td>: ${toThaiBEDate(new Date().toISOString().slice(0,10))}</td></tr>
+        </table>
+      </div>
+    </div>
+    <table class="items">
+      <thead><tr><th style="width:75px">เลขที่บิล</th><th style="width:70px">วันที่</th><th>รายการ</th><th style="width:45px">จำนวน</th><th style="width:55px">หน่วยนับ</th><th style="width:75px">ราคาต่อหน่วย</th><th style="width:85px">จำนวนเงิน</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="summary-row">
+      <div class="bahttext-box"><span class="lbl">จำนวนเงินตัวอักษร:</span> ( ${bahtText(grandTotal)} )</div>
+      <div class="totals">
+        <table>
+          <tr class="grand"><td>ยอดรวมทั้งสิ้น</td><td class="amt">${grandTotal.toFixed(2)}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="footer-row">
+      <div class="note-box"></div>
+      <div class="sign-box">
+        <div class="sign-col"><div class="sign-line"></div>ผู้วางบิล / วันที่</div>
+        <div class="sign-col"><div class="sign-line"></div>ผู้รับวางบิล / วันที่</div>
+      </div>
+    </div>
+  </div>`;
+}
+function buildBillingStatementSheets() {
+  const list = getFilteredBatchInvoices().filter(i=>batchSelectedIds.has(i.id));
+  const groups = {};
+  const order = [];
+  list.forEach(inv => {
+    const custName = (inv.customer && inv.customer.name) || 'ไม่ระบุลูกค้า';
+    if (!groups[custName]) { groups[custName] = []; order.push(custName); }
+    groups[custName].push(inv);
+  });
+  const html = order.map(name => renderBillingStatementSheet(name, groups[name])).join('');
+  return { html, invoiceCount: list.length, customerCount: order.length };
+}
+function printBillingStatements() {
+  const { html, invoiceCount, customerCount } = buildBillingStatementSheets();
+  if (!invoiceCount) { toast('⚠️ กรุณาเลือกบิลอย่างน้อย 1 รายการ'); return; }
+  document.getElementById('printArea').innerHTML = html;
+  toast(`🧾 สรุปใบวางบิลสำหรับ ${customerCount} ลูกค้า จาก ${invoiceCount} บิล`);
+  openPreview();
 }
 
 /* ============ Dashboard ============ */
@@ -2047,10 +2206,12 @@ document.addEventListener('keydown', (e)=>{
   const modalOpen = document.getElementById('preview-modal').classList.contains('show');
   const itemsModalOpen = document.getElementById('items-modal').classList.contains('show');
   const qtyPopupOpen = document.getElementById('qty-popup-modal').classList.contains('show');
+  const unitPopupOpen = document.getElementById('unit-popup-modal').classList.contains('show');
   if (e.key === 'Escape') {
     if (modalOpen) closePreview();
     if (itemsModalOpen) closeItemsModal();
     if (qtyPopupOpen) closeQtyPopup();
+    if (unitPopupOpen) closeUnitPopup();
     return;
   }
   if (!(e.ctrlKey || e.metaKey)) return;
