@@ -574,6 +574,7 @@
         <div class="field-row">
           <div class="field"><label>ที่อยู่</label><textarea id="co-addr"></textarea></div>
           <div class="field" style="max-width:200px;"><label>โทรศัพท์</label><input id="co-phone"></div>
+          <div class="field" style="max-width:240px;"><label>อีเมล</label><input id="co-email" type="email"></div>
         </div>
         <div class="field-row">
           <div class="field" style="max-width:260px;">
@@ -721,6 +722,30 @@ if (!companies.length && legacySettings && legacySettings.name) {
     runningByPeriod: legacySettings.runningByPeriod || {}
   });
   saveLS(LS_KEYS.companies, companies);
+}
+
+/* One-time seed: add "บริษัท ดีทีบี เมดิค จำกัด" as a starting company if it
+   isn't already present. Only ever pushes into the array (never removes or
+   overwrites existing companies) and only runs once per browser — guarded by
+   its own flag so a later manual delete of this company sticks. */
+const SEED_DTBMEDIC_KEY = 'invApp_seed_dtbmedic_v1';
+if (!localStorage.getItem(SEED_DTBMEDIC_KEY)) {
+  const already = companies.some(c => c.tax === '0905561002009' || c.name === 'บริษัท ดีทีบี เมดิค จำกัด');
+  if (!already) {
+    companies.push({
+      id: 'co' + Date.now(),
+      name: 'บริษัท ดีทีบี เมดิค จำกัด',
+      tax: '0905561002009',
+      address: '26 ซ.19 คลองเตย ซอย 5 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110',
+      phone: '0896601326',
+      email: 'dtbmedic@gmail.com',
+      logo: '',
+      prefix: 'IV',
+      runningByPeriod: { '6907': 9 }
+    });
+    saveLS(LS_KEYS.companies, companies);
+  }
+  localStorage.setItem(SEED_DTBMEDIC_KEY, '1');
 }
 
 let editingInvoiceId = null;
@@ -1058,6 +1083,7 @@ function saveCompany() {
     tax: document.getElementById('co-tax').value.trim(),
     address: document.getElementById('co-addr').value.trim(),
     phone: document.getElementById('co-phone').value.trim(),
+    email: document.getElementById('co-email').value.trim(),
     logo: logo || '',
     prefix: document.getElementById('co-prefix').value.trim() || 'IV',
     runningByPeriod
@@ -1077,7 +1103,7 @@ function saveCompany() {
 function clearCompanyForm() {
   editingCompanyId = null;
   document.getElementById('co-id').value = '';
-  ['co-name','co-tax','co-addr','co-phone','co-prefix'].forEach(id=>document.getElementById(id).value='');
+  ['co-name','co-tax','co-addr','co-phone','co-email','co-prefix'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('co-currentnum').value = 0;
   const lp = document.getElementById('co-logo-preview');
   lp.innerHTML = 'ไม่มีโลโก้';
@@ -1093,6 +1119,7 @@ function editCompany(id) {
   document.getElementById('co-tax').value = c.tax;
   document.getElementById('co-addr').value = c.address;
   document.getElementById('co-phone').value = c.phone;
+  document.getElementById('co-email').value = c.email || '';
   document.getElementById('co-prefix').value = c.prefix;
   const today = new Date().toISOString().slice(0,10);
   const period = getPeriod(today);
@@ -1123,7 +1150,7 @@ function renderCompanyList() {
         <div class="name">${c.name}</div>
         <div>เลขภาษี: ${c.tax||'-'}</div>
         <div>${c.address||''}</div>
-        <div>โทร: ${c.phone||'-'} &nbsp; <span class="badge badge-ok">Prefix: ${c.prefix}</span></div>
+        <div>โทร: ${c.phone||'-'}${c.email?(' &nbsp; อีเมล: '+c.email):''} &nbsp; <span class="badge badge-ok">Prefix: ${c.prefix}</span></div>
         <div class="actions">
           <button class="btn btn-secondary btn-sm" onclick="editCompany('${c.id}')">แก้ไข</button>
           <button class="btn btn-danger btn-sm" onclick="deleteCompany('${c.id}')">ลบ</button>
@@ -1189,7 +1216,7 @@ function collectFormData() {
     terms: document.getElementById('f-terms').value,
     status: document.getElementById('f-status').value,
     companyId: company ? company.id : '',
-    company: company ? { name:company.name, address:company.address, tax:company.tax, phone:company.phone, logo:company.logo } : null,
+    company: company ? { name:company.name, address:company.address, tax:company.tax, phone:company.phone, email:company.email, logo:company.logo } : null,
     customer: {
       name: document.getElementById('f-cust-name').value.trim(),
       tax: document.getElementById('f-cust-tax').value.trim(),
@@ -1386,9 +1413,9 @@ function importData(evt) {
 function resolveInvoiceCompany(inv) {
   if (inv.company) return inv.company;
   const byId = companies.find(c=>c.id===inv.companyId);
-  if (byId) return { name:byId.name, address:byId.address, tax:byId.tax, phone:byId.phone, logo:byId.logo };
-  if (companies.length) { const c = companies[0]; return { name:c.name, address:c.address, tax:c.tax, phone:c.phone, logo:c.logo }; }
-  return { name:'-', address:'', tax:'', phone:'', logo:'' };
+  if (byId) return { name:byId.name, address:byId.address, tax:byId.tax, phone:byId.phone, email:byId.email, logo:byId.logo };
+  if (companies.length) { const c = companies[0]; return { name:c.name, address:c.address, tax:c.tax, phone:c.phone, email:c.email, logo:c.logo }; }
+  return { name:'-', address:'', tax:'', phone:'', email:'', logo:'' };
 }
 function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
   const co = resolveInvoiceCompany(data);
@@ -1400,7 +1427,7 @@ function renderPrintSheet(data, copy, copyClass, docTitle, docSubtitle) {
         <div class="company-info">
           <div class="name">${co.name}</div>
           <div class="line">${co.address}</div>
-          <div class="line">เลขประจำตัวผู้เสียภาษี: ${co.tax} &nbsp;|&nbsp; โทร: ${co.phone}</div>
+          <div class="line">เลขประจำตัวผู้เสียภาษี: ${co.tax} &nbsp;|&nbsp; โทร: ${co.phone}${co.email?(' &nbsp;|&nbsp; อีเมล: '+co.email):''}</div>
         </div>
       </div>
       <div class="doc-title-block">
