@@ -873,6 +873,14 @@ function toast(msg) {
   t._hideTimer = setTimeout(()=>t.classList.remove('show'), 3200);
 }
 
+/* Escape text for safe use inside an HTML attribute (e.g. value="...") —
+   without this, a value containing a double-quote (like a product name
+   such as 3"x3") closes the attribute early and truncates/breaks the tag. */
+function escapeAttr(str) {
+  return String(str==null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 /* ============ Theme (dark mode) ============ */
 function applyTheme(theme) {
   if (theme === 'dark') {
@@ -917,7 +925,7 @@ function addItemRow(data) {
   tr.dataset.rowid = itemSeq;
   tr.innerHTML = `
     <td class="rm" style="text-align:center;">${tbody.children.length+1}</td>
-    <td><input class="it-name" list="product-datalist" value="${data?data.name:''}" oninput="onItemNameInput(this)"></td>
+    <td><input class="it-name" list="product-datalist" value="${escapeAttr(data?data.name:'')}" oninput="onItemNameInput(this)"></td>
     <td class="num-col"><input class="it-qty" type="number" value="${data?data.qty:1}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-price" type="number" value="${data?data.price:0}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-amt" value="0.00" readonly style="background:var(--readonly-bg);"></td>
@@ -1093,7 +1101,7 @@ function renderCustomerList() {
 
 /* ============ Products (catalog) ============ */
 function refreshProductDatalist() {
-  document.getElementById('product-datalist').innerHTML = products.map(p=>`<option value="${p.name}"></option>`).join('');
+  document.getElementById('product-datalist').innerHTML = products.map(p=>`<option value="${escapeAttr(p.name)}"></option>`).join('');
 }
 function saveProduct() {
   const name = document.getElementById('p-name').value.trim();
