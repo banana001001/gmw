@@ -180,10 +180,10 @@
   .search-bar input { flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:17px; }
   .search-bar input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
 
-  .cust-list, .co-list, .prod-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:14px; }
-  .cust-card, .co-card, .prod-card { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; font-size:16px; background:var(--nested-card-bg); }
-  .cust-card .name, .co-card .name, .prod-card .name { font-weight:700; font-size:17.5px; margin-bottom:5px; color:var(--text); }
-  .cust-card .actions, .co-card .actions, .prod-card .actions { margin-top:10px; display:flex; gap:8px; }
+  .cust-list, .co-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:14px; }
+  .cust-card, .co-card { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; font-size:16px; background:var(--nested-card-bg); }
+  .cust-card .name, .co-card .name { font-weight:700; font-size:17.5px; margin-bottom:5px; color:var(--text); }
+  .cust-card .actions, .co-card .actions { margin-top:10px; display:flex; gap:8px; }
   .co-card { display:flex; gap:12px; }
   .co-card .logo-thumb { width:52px; height:52px; border:1px dashed var(--muted-border); border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted); overflow:hidden; }
   .co-card .logo-thumb img { max-width:100%; max-height:100%; }
@@ -274,6 +274,9 @@
   /* ============================================================ */
   #printArea { display:none; }
   /* Print palette: Navy #1B3A5C / Soft Black #3A3A38 / Burgundy #7A2E2E — print sheet only, does not touch app UI theme colors */
+  .sheet, .sheet * {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact;
+  }
   .sheet {
     width:186mm; min-height:273mm; background:#fff; padding:0; margin:0 auto 10px auto;
     font-size:13px; color:#3A3A38; page-break-after: always;
@@ -322,6 +325,7 @@
     body { background:#fff; }
     .app-shell { display:none; }
     #printArea { display:block; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   }
 </style>
 </head>
@@ -338,7 +342,6 @@
       <li class="nav-item" data-page="invoice"><span class="ic">📝</span> ออกบิล</li>
       <li class="nav-item" data-page="history"><span class="ic">📚</span> ประวัติบิล</li>
       <li class="nav-item" data-page="customers"><span class="ic">👥</span> ทะเบียนลูกค้า</li>
-      <li class="nav-item" data-page="products"><span class="ic">📦</span> คลังสินค้า</li>
       <li class="nav-item" data-page="companies"><span class="ic">🏢</span> จัดการบริษัท</li>
       <li class="nav-item" data-page="batch"><span class="ic">📤</span> พิมพ์/Export หลายบิล</li>
     </ul>
@@ -452,7 +455,6 @@
 
       <div class="card">
         <h3 class="section-title">รายการสินค้า / บริการ</h3>
-        <datalist id="product-datalist"></datalist>
         <table class="items-table" id="items-table">
           <thead>
             <tr>
@@ -537,28 +539,6 @@
       <div class="card">
         <h3 class="section-title">รายชื่อลูกค้าทั้งหมด</h3>
         <div class="cust-list" id="cust-list"></div>
-      </div>
-    </div>
-
-    <!-- ===== PAGE: PRODUCTS ===== -->
-    <div class="page" id="page-products">
-      <div class="content-header"><div><h2>📦 คลังสินค้า</h2><div class="sub">รายการสินค้า/บริการที่ใช้บ่อย เลือกได้เร็วตอนออกบิล (พิมพ์ชื่อในช่อง "รายการ" แล้วเลือกจากคำแนะนำ)</div></div></div>
-      <div class="card">
-        <h3 class="section-title">เพิ่ม/แก้ไขสินค้า</h3>
-        <input type="hidden" id="p-id">
-        <div class="field-row">
-          <div class="field"><label>ชื่อสินค้า/บริการ</label><input id="p-name"></div>
-          <div class="field" style="max-width:180px;"><label>ราคาต่อหน่วย (ค่าเริ่มต้น, รวม VAT)</label><input id="p-price" type="number" min="0" step="0.01"></div>
-          <div class="field" style="max-width:140px;"><label>หน่วยนับ</label><input id="p-unit" placeholder="ชิ้น / ชม. / งาน"></div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveProduct()">💾 บันทึกสินค้า</button>
-          <button class="btn btn-secondary" onclick="clearProductForm()">🆕 ล้างฟอร์ม</button>
-        </div>
-      </div>
-      <div class="card">
-        <h3 class="section-title">สินค้า/บริการทั้งหมด</h3>
-        <div class="prod-list" id="prod-list"></div>
       </div>
     </div>
 
@@ -695,7 +675,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 /* ============ Storage helpers ============ */
-const LS_KEYS = { invoices:'invApp_invoices', customers:'invApp_customers', companies:'invApp_companies', products:'invApp_products', settings:'invApp_settings' };
+const LS_KEYS = { invoices:'invApp_invoices', customers:'invApp_customers', companies:'invApp_companies', settings:'invApp_settings' };
 const THEME_KEY = 'invApp_theme';
 
 function loadLS(key, fallback) {
@@ -707,7 +687,6 @@ function saveLS(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 let invoices = loadLS(LS_KEYS.invoices, []);
 let customers = loadLS(LS_KEYS.customers, []);
 let companies = loadLS(LS_KEYS.companies, []);
-let products = loadLS(LS_KEYS.products, []);
 const legacySettings = loadLS(LS_KEYS.settings, null);
 
 /* Migrate legacy single-company settings (invApp_settings) into invApp_companies
@@ -837,7 +816,6 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if (btn.dataset.page==='dashboard') { refreshDashboardCompanySelect(); renderDashboard(); }
     if (btn.dataset.page==='history') renderHistory();
     if (btn.dataset.page==='customers') renderCustomerList();
-    if (btn.dataset.page==='products') renderProductList();
     if (btn.dataset.page==='companies') renderCompanyList();
     if (btn.dataset.page==='batch') { refreshBatchCompanySelect(); renderBatchList(); }
   });
@@ -852,21 +830,13 @@ function addItemRow(data) {
   tr.dataset.rowid = itemSeq;
   tr.innerHTML = `
     <td class="rm" style="text-align:center;">${tbody.children.length+1}</td>
-    <td><input class="it-name" list="product-datalist" value="${data?data.name:''}" oninput="onItemNameInput(this)"></td>
+    <td><input class="it-name" value="${data?data.name:''}"></td>
     <td class="num-col"><input class="it-qty" type="number" value="${data?data.qty:1}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-price" type="number" value="${data?data.price:0}" min="0" oninput="recalc()"></td>
     <td class="num-col"><input class="it-amt" value="0.00" readonly style="background:var(--readonly-bg);"></td>
     <td class="rm"><button class="btn btn-danger btn-sm" onclick="removeItemRow(this)">✕</button></td>
   `;
   tbody.appendChild(tr);
-  recalc();
-}
-function onItemNameInput(input) {
-  const product = products.find(p=>p.name===input.value.trim());
-  if (product) {
-    const priceInput = input.closest('tr').querySelector('.it-price');
-    if (!parseFloat(priceInput.value)) priceInput.value = product.price;
-  }
   recalc();
 }
 function removeItemRow(btn) {
@@ -1021,62 +991,6 @@ function renderCustomerList() {
       <div class="actions">
         <button class="btn btn-secondary btn-sm" onclick="editCustomer('${c.id}')">แก้ไข</button>
         <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${c.id}')">ลบ</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-/* ============ Products (catalog) ============ */
-function refreshProductDatalist() {
-  document.getElementById('product-datalist').innerHTML = products.map(p=>`<option value="${p.name}"></option>`).join('');
-}
-function saveProduct() {
-  const name = document.getElementById('p-name').value.trim();
-  if (!name) { toast('⚠️ กรุณากรอกชื่อสินค้า'); return; }
-  const id = document.getElementById('p-id').value || 'p'+Date.now();
-  const obj = {
-    id, name,
-    price: parseFloat(document.getElementById('p-price').value)||0,
-    unit: document.getElementById('p-unit').value.trim()
-  };
-  const idx = products.findIndex(p=>p.id===id);
-  if (idx>=0) products[idx]=obj; else products.push(obj);
-  saveLS(LS_KEYS.products, products);
-  clearProductForm();
-  renderProductList();
-  refreshProductDatalist();
-  toast('✅ บันทึกสินค้าแล้ว');
-}
-function clearProductForm() {
-  document.getElementById('p-id').value = '';
-  ['p-name','p-price','p-unit'].forEach(id=>document.getElementById(id).value='');
-}
-function editProduct(id) {
-  const p = products.find(x=>x.id===id);
-  if (!p) return;
-  document.getElementById('p-id').value = p.id;
-  document.getElementById('p-name').value = p.name;
-  document.getElementById('p-price').value = p.price;
-  document.getElementById('p-unit').value = p.unit;
-  window.scrollTo(0,0);
-}
-function deleteProduct(id) {
-  if (!confirm('ลบสินค้ารายการนี้ใช่ไหม?')) return;
-  products = products.filter(p=>p.id!==id);
-  saveLS(LS_KEYS.products, products);
-  renderProductList();
-  refreshProductDatalist();
-}
-function renderProductList() {
-  const el = document.getElementById('prod-list');
-  if (!products.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">ยังไม่มีสินค้าในคลัง</div>'; return; }
-  el.innerHTML = products.map(p=>`
-    <div class="prod-card">
-      <div class="name">${p.name}</div>
-      <div>ราคา: ${p.price.toFixed(2)} บาท ${p.unit?('/ '+p.unit):''}</div>
-      <div class="actions">
-        <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}')">แก้ไข</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">ลบ</button>
       </div>
     </div>
   `).join('');
@@ -1307,7 +1221,7 @@ function collectFormData() {
 }
 
 function autoBackup(docNo) {
-  const payload = { invoices, customers, companies, products, settings: legacySettings, exportedAt: new Date().toISOString(), type: 'auto-backup' };
+  const payload = { invoices, customers, companies, settings: legacySettings, exportedAt: new Date().toISOString(), type: 'auto-backup' };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   const stamp = new Date().toISOString().replace(/[:T]/g,'-').slice(0,19);
@@ -1458,7 +1372,7 @@ function deleteInvoice(id) {
 
 /* ============ Export / Import ============ */
 function exportData() {
-  const payload = { invoices, customers, companies, products, settings: legacySettings, exportedAt: new Date().toISOString() };
+  const payload = { invoices, customers, companies, settings: legacySettings, exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1477,13 +1391,11 @@ function importData(evt) {
       invoices = data.invoices || [];
       customers = data.customers || [];
       companies = data.companies || [];
-      products = data.products || [];
       saveLS(LS_KEYS.invoices, invoices);
       saveLS(LS_KEYS.customers, customers);
       saveLS(LS_KEYS.companies, companies);
-      saveLS(LS_KEYS.products, products);
       renderHistory(); renderCustomerList(); refreshCustomerSelect(); renderCompanyList(); refreshCompanySelect();
-      renderProductList(); refreshProductDatalist(); refreshDashboardCompanySelect(); renderDashboard();
+      refreshDashboardCompanySelect(); renderDashboard();
       toast('✅ Import ข้อมูลสำเร็จ');
     } catch(err) { toast('❌ ไฟล์ไม่ถูกต้อง'); }
   };
@@ -1870,11 +1782,9 @@ document.addEventListener('keydown', (e)=>{
 applyTheme(localStorage.getItem(THEME_KEY) || 'light');
 refreshCustomerSelect();
 refreshCompanySelect();
-refreshProductDatalist();
 resetForm();
 renderCustomerList();
 renderCompanyList();
-renderProductList();
 updateCompanyDocPreview();
 refreshDashboardCompanySelect();
 renderDashboard();
