@@ -293,6 +293,9 @@
     width:186mm; min-height:273mm; background:#fff; padding:0; margin:0 auto 10px auto;
     font-size:14.5px; color:#3A3A38; page-break-after: always;
   }
+  /* Don't force a break after the very last sheet — otherwise printing/saving
+     as PDF adds a trailing blank page (e.g. 5 pages instead of 4). */
+  .sheet:last-child { page-break-after: auto; }
   .doc-header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:6px; margin-bottom:0; }
   .company-block { display:flex; gap:10px; align-items:flex-start; }
   .logo-box { width:60px; height:60px; border:1px dashed #999; display:flex; align-items:center; justify-content:center; font-size:11px; color:#999; text-align:center; flex-shrink:0; overflow:hidden; }
