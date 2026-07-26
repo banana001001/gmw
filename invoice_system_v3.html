@@ -164,6 +164,10 @@
   .qty-custom-row { display:flex; gap:10px; }
   .qty-custom-row input { flex:1; padding:9px 11px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:17.5px; background:var(--input-bg); color:var(--text); }
 
+  .cust-btn-row { display:flex; flex-wrap:wrap; gap:8px; }
+  .cust-btn-row .btn { padding:8px 14px; font-size:15px; }
+  .cust-btn-row .btn.active { outline:2px solid var(--accent); outline-offset:1px; }
+
   #product-popup-search { width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:17.5px; background:var(--input-bg); color:var(--text); box-sizing:border-box; margin-bottom:12px; }
   .product-pick-list { max-height:320px; overflow-y:auto; border:1px solid var(--border); border-radius:7px; }
   .product-pick-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
@@ -468,11 +472,9 @@
       <div class="card">
         <h3 class="section-title">ข้อมูลลูกค้า</h3>
         <div class="field-row">
-          <div class="field" style="max-width:280px;">
+          <div class="field" style="max-width:100%;">
             <label>เลือกจากทะเบียนลูกค้า</label>
-            <select id="f-cust-select">
-              <option value="">-- กรอกใหม่ / ไม่ระบุ --</option>
-            </select>
+            <div class="cust-btn-row" id="f-cust-buttons"></div>
           </div>
         </div>
         <div class="field-row">
@@ -1118,21 +1120,34 @@ function recalc() {
 }
 
 /* ============ Customers ============ */
+let selectedCustBtnId = '';
 function refreshCustomerSelect() {
-  const sel = document.getElementById('f-cust-select');
-  sel.innerHTML = '<option value="">-- กรอกใหม่ / ไม่ระบุ --</option>' +
-    customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const el = document.getElementById('f-cust-buttons');
+  const activeCls = id => id === selectedCustBtnId ? ' active' : '';
+  el.innerHTML = `<button type="button" class="btn btn-secondary${activeCls('')}" onclick="clearCustomerSelection()">✎ กรอกใหม่ / ไม่ระบุ</button>` +
+    customers.map(c=>`<button type="button" class="btn btn-secondary${activeCls(c.id)}" onclick="pickCustomerButton('${c.id}')">${c.name}</button>`).join('');
 }
-document.getElementById('f-cust-select').addEventListener('change', (e)=>{
-  const c = customers.find(x=>x.id===e.target.value);
-  if (c) {
-    document.getElementById('f-cust-name').value = c.name;
-    document.getElementById('f-cust-tax').value = c.tax;
-    document.getElementById('f-cust-branch').value = c.branch;
-    document.getElementById('f-cust-addr').value = c.address;
-    document.getElementById('f-cust-phone').value = c.phone;
-  }
-});
+function pickCustomerButton(id) {
+  const c = customers.find(x=>x.id===id);
+  if (!c) return;
+  selectedCustBtnId = id;
+  document.getElementById('f-cust-name').value = c.name;
+  document.getElementById('f-cust-tax').value = c.tax;
+  document.getElementById('f-cust-branch').value = c.branch;
+  document.getElementById('f-cust-addr').value = c.address;
+  document.getElementById('f-cust-phone').value = c.phone;
+  refreshCustomerSelect();
+}
+function clearCustomerSelection() {
+  selectedCustBtnId = '';
+  ['f-cust-name','f-cust-tax','f-cust-branch','f-cust-addr','f-cust-phone'].forEach(id=>document.getElementById(id).value='');
+  refreshCustomerSelect();
+}
+function syncCustomerSelectionByName(name, tax) {
+  const c = customers.find(x=>x.tax && tax && x.tax===tax) || customers.find(x=>x.name===name);
+  selectedCustBtnId = c ? c.id : '';
+  refreshCustomerSelect();
+}
 
 function saveCustomer() {
   const name = document.getElementById('c-name').value.trim();
@@ -1420,7 +1435,7 @@ function resetForm() {
   updateDocNoHint();
   document.getElementById('f-terms').value = 'เงินสด';
   document.getElementById('f-status').value = 'unpaid';
-  document.getElementById('f-cust-select').value = '';
+  clearCustomerSelection();
   ['f-cust-name','f-cust-tax','f-cust-branch','f-cust-addr','f-cust-phone','f-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-discount').value = 0;
   document.getElementById('items-body').innerHTML = '';
@@ -1536,6 +1551,7 @@ function loadInvoiceToForm(id) {
   document.getElementById('f-cust-phone').value = inv.customer.phone;
   document.getElementById('f-note').value = inv.note;
   document.getElementById('f-discount').value = inv.discount;
+  syncCustomerSelectionByName(inv.customer.name, inv.customer.tax);
   document.getElementById('items-body').innerHTML = '';
   inv.items.forEach(it=>addItemRow(it));
   recalc();
@@ -1563,6 +1579,7 @@ function duplicateInvoice(id) {
   document.getElementById('f-cust-phone').value = inv.customer.phone;
   document.getElementById('f-note').value = inv.note;
   document.getElementById('f-discount').value = inv.discount;
+  syncCustomerSelectionByName(inv.customer.name, inv.customer.tax);
   document.getElementById('items-body').innerHTML = '';
   inv.items.forEach(it=>addItemRow(it));
   recalc();
