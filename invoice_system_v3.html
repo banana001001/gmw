@@ -155,6 +155,7 @@
   table.items-table input[type=number]::-webkit-outer-spin-button,
   table.items-table input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   table.items-table input[type=number] { -moz-appearance:textfield; }
+  table.items-table input.it-name { cursor:pointer; background:var(--readonly-bg); }
   table.items-table input.it-qty { cursor:pointer; background:var(--readonly-bg); }
   table.items-table input.it-unit { cursor:pointer; background:var(--readonly-bg); text-align:center; }
 
@@ -162,6 +163,15 @@
   .qty-preset-grid .btn { padding:14px 6px; font-size:17.5px; }
   .qty-custom-row { display:flex; gap:10px; }
   .qty-custom-row input { flex:1; padding:9px 11px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:17.5px; background:var(--input-bg); color:var(--text); }
+
+  #product-popup-search { width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:7px; font-family:inherit; font-size:17.5px; background:var(--input-bg); color:var(--text); box-sizing:border-box; margin-bottom:12px; }
+  .product-pick-list { max-height:320px; overflow-y:auto; border:1px solid var(--border); border-radius:7px; }
+  .product-pick-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
+  .product-pick-row:last-child { border-bottom:none; }
+  .product-pick-row:hover { background:var(--nested-card-bg); }
+  .product-pick-row .ppr-name { font-weight:600; color:var(--text); }
+  .product-pick-row .ppr-meta { font-size:14px; color:var(--text-muted); white-space:nowrap; }
+  .product-pick-empty { padding:16px; text-align:center; color:var(--text-muted); font-size:15px; }
 
   .btn { padding:10px 18px; border:none; border-radius:8px; cursor:pointer; font-family:inherit; font-size:17.5px; font-weight:600; transition:filter .15s, transform .05s; }
   .btn:hover { filter:brightness(1.08); }
@@ -478,7 +488,6 @@
 
       <div class="card">
         <h3 class="section-title">รายการสินค้า / บริการ</h3>
-        <datalist id="product-datalist"></datalist>
         <table class="items-table" id="items-table">
           <thead>
             <tr>
@@ -801,6 +810,22 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="product-popup-modal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-head">
+      <h3>📦 เลือกรายการสินค้า</h3>
+      <button class="btn btn-secondary btn-sm" onclick="closeProductPopup()">✕ ปิด</button>
+    </div>
+    <div class="modal-body" style="background:var(--card-bg);">
+      <input type="text" id="product-popup-search" placeholder="ค้นหาสินค้า หรือพิมพ์ชื่อรายการใหม่..." oninput="renderProductPopupList()" onkeydown="if(event.key==='Enter') pickProductCustom()">
+      <div class="product-pick-list" id="product-popup-list"></div>
+      <div class="qty-custom-row" style="margin-top:12px;">
+        <button class="btn btn-primary" style="width:100%;" onclick="pickProductCustom()">ใช้ชื่อที่พิมพ์เป็นรายการใหม่</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1001,7 +1026,7 @@ function addItemRow(data) {
   tr.dataset.rowid = itemSeq;
   tr.innerHTML = `
     <td class="rm" style="text-align:center;">${tbody.children.length+1}</td>
-    <td><input class="it-name" list="product-datalist" value="${escapeAttr(data?data.name:'')}" oninput="onItemNameInput(this)"></td>
+    <td><input class="it-name" value="${escapeAttr(data?data.name:'')}" readonly onclick="openProductPopup(this)"></td>
     <td class="num-col"><input class="it-qty" type="number" value="${data?data.qty:1}" min="0" readonly onclick="openQtyPopup(this)"></td>
     <td><input class="it-unit" value="${escapeAttr(data&&data.unit?data.unit:'ชิ้น')}" readonly onclick="openUnitPopup(this)"></td>
     <td class="num-col"><input class="it-price" type="number" value="${data?data.price:0}" min="0" oninput="recalc()"></td>
@@ -1009,18 +1034,6 @@ function addItemRow(data) {
     <td class="rm"><button class="btn btn-danger btn-sm" onclick="removeItemRow(this)">✕</button></td>
   `;
   tbody.appendChild(tr);
-  recalc();
-}
-function onItemNameInput(input) {
-  const product = products.find(p=>p.name===input.value.trim());
-  if (product) {
-    const tr = input.closest('tr');
-    const priceInput = tr.querySelector('.it-price');
-    if (!parseFloat(priceInput.value)) priceInput.value = product.price;
-    const unitInput = tr.querySelector('.it-unit');
-    const curUnit = unitInput.value.trim();
-    if ((!curUnit || curUnit === 'ชิ้น') && product.unit) unitInput.value = product.unit;
-  }
   recalc();
 }
 function removeItemRow(btn) {
@@ -1181,9 +1194,6 @@ function renderCustomerList() {
 }
 
 /* ============ Products (catalog) ============ */
-function refreshProductDatalist() {
-  document.getElementById('product-datalist').innerHTML = products.map(p=>`<option value="${escapeAttr(p.name)}"></option>`).join('');
-}
 function saveProduct() {
   const name = document.getElementById('p-name').value.trim();
   if (!name) { toast('⚠️ กรุณากรอกชื่อสินค้า'); return; }
@@ -1198,7 +1208,6 @@ function saveProduct() {
   saveLS(LS_KEYS.products, products);
   clearProductForm();
   renderProductList();
-  refreshProductDatalist();
   toast('✅ บันทึกสินค้าแล้ว');
 }
 function clearProductForm() {
@@ -1219,7 +1228,6 @@ function deleteProduct(id) {
   products = products.filter(p=>p.id!==id);
   saveLS(LS_KEYS.products, products);
   renderProductList();
-  refreshProductDatalist();
 }
 function renderProductList() {
   const el = document.getElementById('prod-list');
@@ -1665,6 +1673,54 @@ function pickUnitCustom() {
   closeUnitPopup();
 }
 
+/* ============ Product picker popup ============ */
+let productPopupTargetInput = null;
+function openProductPopup(inputEl) {
+  productPopupTargetInput = inputEl;
+  const search = document.getElementById('product-popup-search');
+  search.value = inputEl.value || '';
+  renderProductPopupList();
+  document.getElementById('product-popup-modal').classList.add('show');
+  search.focus();
+}
+function closeProductPopup() {
+  document.getElementById('product-popup-modal').classList.remove('show');
+  productPopupTargetInput = null;
+}
+function renderProductPopupList() {
+  const q = document.getElementById('product-popup-search').value.trim().toLowerCase();
+  const list = q ? products.filter(p=>p.name.toLowerCase().includes(q)) : products;
+  const el = document.getElementById('product-popup-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="product-pick-empty">ไม่พบสินค้าที่ตรงกัน — พิมพ์ชื่อแล้วกด "ใช้ชื่อที่พิมพ์เป็นรายการใหม่"</div>';
+    return;
+  }
+  el.innerHTML = list.map(p=>`
+    <div class="product-pick-row" onclick="pickProduct('${p.id}')">
+      <span class="ppr-name">${p.name}</span>
+      <span class="ppr-meta">${p.price.toFixed(2)} บาท${p.unit?(' / '+p.unit):''}</span>
+    </div>
+  `).join('');
+}
+function pickProduct(id) {
+  const product = products.find(p=>p.id===id);
+  if (!product || !productPopupTargetInput) { closeProductPopup(); return; }
+  productPopupTargetInput.value = product.name;
+  const tr = productPopupTargetInput.closest('tr');
+  const priceInput = tr.querySelector('.it-price');
+  if (!parseFloat(priceInput.value)) priceInput.value = product.price;
+  const unitInput = tr.querySelector('.it-unit');
+  const curUnit = unitInput.value.trim();
+  if ((!curUnit || curUnit === 'ชิ้น') && product.unit) unitInput.value = product.unit;
+  recalc();
+  closeProductPopup();
+}
+function pickProductCustom() {
+  const val = document.getElementById('product-popup-search').value.trim();
+  if (productPopupTargetInput) { productPopupTargetInput.value = val; recalc(); }
+  closeProductPopup();
+}
+
 function renderHistory() {
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const body = document.getElementById('hist-body');
@@ -1728,7 +1784,7 @@ function importData(evt) {
       saveLS(LS_KEYS.companies, companies);
       saveLS(LS_KEYS.products, products);
       renderHistory(); renderCustomerList(); refreshCustomerSelect(); renderCompanyList(); refreshCompanySelect();
-      renderProductList(); refreshProductDatalist(); refreshDashboardCompanySelect(); renderDashboard();
+      renderProductList(); refreshDashboardCompanySelect(); renderDashboard();
       toast('✅ Import ข้อมูลสำเร็จ');
     } catch(err) { toast('❌ ไฟล์ไม่ถูกต้อง'); }
   };
@@ -2233,7 +2289,6 @@ document.addEventListener('keydown', (e)=>{
 applyTheme(localStorage.getItem(THEME_KEY) || 'light');
 refreshCustomerSelect();
 refreshCompanySelect();
-refreshProductDatalist();
 resetForm();
 renderCustomerList();
 renderCompanyList();
